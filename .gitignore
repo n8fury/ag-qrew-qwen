@@ -1,8 +1,9 @@
 # Secrets — never commit
 .env
 
-# Sprint runtime output — all generated per sprint by QA Lead
-qa/
+# Sprint runtime output — all generated per sprint by QA Lead (keep the mount point)
+**/qa/**
+!**/qa/.gitkeep
 
 # Dependencies
 node_modules/

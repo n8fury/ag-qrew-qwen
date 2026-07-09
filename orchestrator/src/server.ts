@@ -68,10 +68,11 @@ app.post('/api/run', (req: Request, res: Response) => {
 
   const specPath = fileURLToPath(new URL('../../demo-app/openapi.yaml', import.meta.url));
   const ctx: RunContext = req.body?.ctx ?? {
-    project: 'Demo Task Manager', sprint: 1, site: 'http://localhost:3000',
+    project: 'Demo Task Manager', sprint: 1, site: config.demoAppUrl,
     modules: ['auth', 'tasks'],
     creds: { adminEmail: 'admin@demo.test', adminPassword: 'admin123', userEmail: 'user@demo.test', userPassword: 'user123' },
-    docText: 'Sprint 1 — Demo Task Manager: login + task CRUD; title required, max 200 chars; over-length/missing title → 400.',
+    docText: 'Sprint 1 — Demo Task Manager: login + task CRUD; title required, max 200 chars; over-length/missing title → 400. Entry points: sign-in page is the root page (/), tasks page at /tasks, REST API under /api (auth: POST /api/auth/login).',
+    siteMap: 'login UI = / (root page, email+password form) · tasks UI = /tasks · REST API under /api per the OpenAPI spec (auth: POST /api/auth/login)',
   };
 
   runSociety(ctx, {

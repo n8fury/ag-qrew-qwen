@@ -1,0 +1,29 @@
+# AG-QREW on Qwen — one-command run for judges:
+#   1. cp .env.example orchestrator/.env   (paste DASHSCOPE_API_KEY)
+#   2. docker compose up --build
+#   3. open http://localhost:8787 → Start run → Proceed at the checkpoint
+services:
+  demo-app:
+    build: ./demo-app
+    container_name: agqrew-demo-app
+    ports:
+      - "3000:3000"
+
+  orchestrator:
+    build: ./orchestrator
+    container_name: agqrew-orchestrator
+    ports:
+      - "8787:8787"
+    env_file:
+      - ./orchestrator/.env
+    environment:
+      # inside the compose network the app-under-test is the demo-app service
+      DEMO_APP_URL: http://demo-app:3000
+      PLAYWRIGHT_HEADED: "0"
+      DB_PATH: ./qa/agqrew.db
+      BUS_PATH: ./qa/shared-task-list.txt
+    volumes:
+      # shared artifact volume — bus, SQLite DB, reports, generated Playwright specs
+      - ./qa:/app/qa
+    depends_on:
+      - demo-app

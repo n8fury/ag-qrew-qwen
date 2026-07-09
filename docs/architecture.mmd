@@ -1,0 +1,49 @@
+flowchart TB
+    subgraph human [Human]
+        HP([Proceed checkpoint - the ONE human decision])
+    end
+
+    subgraph orch [Orchestrator - qa-lead on qwen-max]
+        P0[Phase 0<br/>env gate]
+        P1[Phase 1<br/>test plan]
+        P2[Phase 2<br/>workers execute]
+        P3[Phase 3<br/>dispute adjudication]
+        P4[Phase 4<br/>sign-off verdict]
+        P0 --> P1 --> HP --> P2 --> P3 --> P4
+    end
+
+    subgraph workers [Worker agents - qwen-plus]
+        TC[qa-tc-writer<br/>test cases]
+        API[qa-api-tester<br/>HTTP vs OpenAPI]
+        SW[qa-script-writer<br/>Playwright specs]
+        HK[qa-hawk<br/>exploratory + vision]
+    end
+
+    P2 --> TC
+    TC -- TC-READY --> SW
+    TC -- TC-READY --> HK
+    HK -. evidence contradicts a bug .-> API
+
+    subgraph infra [Shared infrastructure]
+        BUS[(Signal bus<br/>qa/shared-task-list.txt)]
+        DB[(SQLite<br/>cases, runs, results, bugs, disputes)]
+        QA[/qa/ artifact volume<br/>plans, specs, screenshots, reports/]
+    end
+
+    TC & API & SW & HK <--> BUS
+    TC & API & SW & HK <--> DB
+    SW & HK --> QA
+
+    subgraph target [Demo app under test]
+        APP[Express task manager<br/>4 planted bugs]
+    end
+
+    API -- http_request --> APP
+    SW -- playwright_run --> APP
+    HK -- browser_snapshot --> APP
+
+    VL[qwen-vl-max<br/>screenshot analysis]
+    HK --- VL
+
+    DASH[Dashboard - SSE<br/>live signals, bugs, disputes, report]
+    BUS --> DASH

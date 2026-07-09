@@ -6,13 +6,20 @@ import { chromium } from 'playwright';
 import type { ToolDef } from '../agentLoop.js';
 import { chat } from '../qwen.js';
 
-const exec = promisify(execFile);
+const execP = promisify(execFile);
+// On Windows, npx is npx.cmd — spawning a .cmd without a shell throws (EINVAL/ENOENT),
+// so run through the shell there. Paths under qa/ contain no spaces or shell metachars.
+const IS_WIN = process.platform === 'win32';
+const exec = (cmd: string, args: string[], opts: { timeout: number; maxBuffer: number }) =>
+  execP(cmd, args, { ...opts, shell: IS_WIN });
 const RUN_TIMEOUT_MS = 180_000;
 const MAX_OUTPUT_CHARS = 5000;
 
 function assertInsideQa(qaRoot: string, relPath: string): string {
   const root = resolve(qaRoot);
-  const target = resolve(root, relPath);
+  // accept both "qa/<path>" and "<path>" — see fs.ts resolveSandboxed
+  const rel = relPath.replace(/^qa[\\/]+/i, '');
+  const target = resolve(root, rel);
   if (target !== root && !target.startsWith(root + sep)) {
     throw new Error(`path escapes the qa/ sandbox: ${relPath}`);
   }

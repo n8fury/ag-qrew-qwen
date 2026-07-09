@@ -76,6 +76,7 @@ export interface RunContext {
   modules: string[];
   creds?: { adminEmail?: string; adminPassword?: string; userEmail?: string; userPassword?: string };
   docText: string;        // the source requirements / release note for the test plan
+  siteMap?: string;       // documented UI entry points, so reachability is judged against real routes
 }
 
 function credLines(ctx: RunContext): string {
@@ -103,10 +104,15 @@ export function testPlanTask(ctx: RunContext): string {
   ].join('\n');
 }
 
+function siteMapLines(ctx: RunContext): string[] {
+  return ctx.siteMap ? [`Documented UI routes (judge reachability against THESE paths, not guessed ones):`, `  ${ctx.siteMap}`] : [];
+}
+
 export function hawkEnvTask(ctx: RunContext): string {
   return [
     `HAWK-TASK | mode: environment | site: ${ctx.site} | test-plan: test-plan-sprint${ctx.sprint}.txt`,
     `In-scope modules to reach: ${ctx.modules.join(', ')}`,
+    ...siteMapLines(ctx),
     `Credentials:`,
     credLines(ctx),
   ].join('\n');
@@ -139,6 +145,7 @@ export function scriptWriterTask(ctx: RunContext): string {
     `E2E-TASK | agent: qa-script-writer | site: ${ctx.site} | modules (in order):`,
     lines,
     `project: ${ctx.project} | sprint: ${ctx.sprint}`,
+    ...siteMapLines(ctx),
     `Credentials:`,
     credLines(ctx),
   ].join('\n');
@@ -148,6 +155,7 @@ export function hawkExploreTask(ctx: RunContext): string {
   return [
     `HAWK-TASK | mode: explore | modules: ${ctx.modules.join(', ')} | site: ${ctx.site}`,
     `project: ${ctx.project} | sprint: ${ctx.sprint}`,
+    ...siteMapLines(ctx),
     `Smoke each module first; on smoke pass, run risk-based exploratory testing (SFDIPOT + FEW HICCUPPS).`,
     `Read stored cases with tc_list; read the SFDIPOT map from qa/test-plan-sprint${ctx.sprint}.txt.`,
     `Credentials:`,

@@ -9,7 +9,10 @@ import type { ToolDef } from '../agentLoop.js';
  */
 function resolveSandboxed(qaRoot: string, relPath: string): string {
   const root = resolve(qaRoot);
-  const target = resolve(root, relPath);
+  // Agents address artefacts as "qa/<path>" (how tasks and bus signals name them),
+  // while the schema says paths are relative to qa/ — accept both forms.
+  const rel = relPath.replace(/^qa[\\/]+/i, '');
+  const target = resolve(root, rel);
   if (target !== root && !target.startsWith(root + sep)) {
     throw new Error(`path escapes the qa/ sandbox: ${relPath}`);
   }
