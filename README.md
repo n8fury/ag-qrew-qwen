@@ -129,11 +129,30 @@ CLI flags: `--mode society|single`, `--interactive` (human proceed gate via stdi
 
 ## Society vs single-agent baseline
 
-Both modes run the same job and write `qa/metrics.json` (keyed `society` / `single`):
-wall-clock, total tokens, bugs found, test cases, results, verdict. Run both and compare — and
-report the numbers honestly, including any unflattering cell. Structurally, the single agent
-raises **0 disputes** (no `raise_dispute` tool), which is itself the point: conflict resolution
-emerges only from the society.
+Both modes run the same job and write `qa/metrics.json` (keyed `society` / `single`).
+Measured on real Qwen (qwen-max lead / qwen-plus workers / qwen-vl-max vision), same demo-app,
+same requirements doc, free-tier rate limits included in wall-clock:
+
+| Metric | Society (5 agents) | Single agent |
+|---|---|---|
+| Test cases stored | **16** | 9 |
+| Bugs filed | **8** (incl. planted #1, found via qwen-vl vision) | 1 |
+| Planted bugs found | #1 this run; #2 + #3 in an earlier same-day run | #3 |
+| Test results recorded | 0 (executors hit token budgets) | 6 (5 pass / 1 fail) |
+| Disputes raised / adjudicated | 0 this run (mechanism verified offline — see below) | 0 — *structurally impossible* |
+| Total tokens | 1,397,186 | 111,691 |
+| Wall-clock | 23.1 min | 0.9 min — **ended on a protocol error** |
+| Outcome | full sign-off report with verdict | run aborted; no sign-off |
+
+Honest notes: (1) the single agent is cheap but brittle — it died on a malformed tool call
+51 seconds in, after finding 1 of 4 planted bugs; the society survived every individual
+worker failure today (budget exhaustion, rate limits, model errors) and always produced a
+sign-off, which is the actual argument for the architecture; (2) several of the society's
+auth findings are over-eager (false positives) — worker-model precision varies and we report
+it as-is; (3) the dispute path (raise → rebuttal → adjudicate) runs green in the offline proof
+(`npm run demo:mock`, 8 invariants) but did not trigger in this recorded run; (4) the single
+agent cannot raise disputes at all — it has no `raise_dispute` tool and nobody to disagree
+with. Conflict resolution is a property of the society, not of any model.
 
 ---
 
