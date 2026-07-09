@@ -1,0 +1,13 @@
+{
+  "name": "ag-qrew-demo-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Buggy demo task-manager app — target-under-test for the ag-qrew multi-agent QA pipeline.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
