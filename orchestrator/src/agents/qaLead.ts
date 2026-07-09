@@ -138,7 +138,8 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
   // designated fallback — the signal bus makes the coordination order-independent).
   log('[phase 2b] qa-script-writer, then qa-hawk explore…');
   outcomes.push(await runAgent('qa-script-writer', deps, scriptWriterTask(ctx)));
-  outcomes.push(await runAgent('qa-hawk', deps, hawkExploreTask(ctx)));
+  // hawk's vision calls are token-heavy (each screenshot → qwen-vl) — larger budget
+  outcomes.push(await runAgent('qa-hawk', deps, hawkExploreTask(ctx), { maxTokens: 350_000 }));
 
   log('[phase 2c] qa-api-tester (probes API, may dispute UI findings)…');
   outcomes.push(await runAgent('qa-api-tester', deps, apiTesterTask(ctx)));

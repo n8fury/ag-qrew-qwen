@@ -125,10 +125,10 @@ export function tcWriterTask(ctx: RunContext): string {
     `Write test cases for these modules (in order): ${ctx.modules.join(', ')}`,
     `project: ${ctx.project} | sprint: ${ctx.sprint} | site: ${ctx.site}`,
     `Read the SFDIPOT coverage map and expected results from qa/test-plan-sprint${ctx.sprint}.txt (fs_read it).`,
-    `Store each module's cases with tc_store (this emits TC-READY), then continue to the next module.`,
-    `Budget discipline: write AT MOST 8 focused cases per module (happy path, key negatives,`,
-    `one boundary each) and store a module's cases with ONE tc_store call. Depth over volume —`,
-    `you have a hard token budget and an unfinished module is worse than a lean one.`,
+    `DELIVERABLE CONTRACT (non-negotiable): for EACH module you MUST call tc_store exactly once`,
+    `with 6-8 focused cases (happy path, key negatives, one boundary each) BEFORE you finish.`,
+    `tc_store emits TC-READY — the script-writer and hawk consume these cases; finishing with`,
+    `zero tc_store calls breaks the whole pipeline and is a protocol violation.`,
   ].join('\n');
 }
 
@@ -163,6 +163,12 @@ export function hawkExploreTask(ctx: RunContext): string {
     ...siteMapLines(ctx),
     `Smoke each module first; on smoke pass, run risk-based exploratory testing (SFDIPOT + FEW HICCUPPS).`,
     `Read stored cases with tc_list; read the SFDIPOT map from qa/test-plan-sprint${ctx.sprint}.txt.`,
+    `PRIORITY ORACLES straight from the requirements doc — check these FIRST and file bugs immediately:`,
+    `(1) the tasks page header must show an accurate task count;`,
+    `(2) after any create/delete through the API, the tasks PAGE must reflect the current list —`,
+    `cross-check browser_snapshot of /tasks against GET /api/tasks after a mutation.`,
+    `Budget: browser_snapshot is expensive — use it at most 4 times; bug_file the moment evidence`,
+    `is in hand; raise_dispute when your UI evidence contradicts recorded API behaviour (or vice versa).`,
     `Credentials:`,
     credLines(ctx),
   ].join('\n');
