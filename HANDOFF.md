@@ -1,80 +1,92 @@
 # HANDOFF — AG-QREW on Qwen
 
-> The contract for any later session (Opus/Sonnet after July 7). Bootstrap with two reads:
-> this file + `AG-QREW-QWEN-PLAN_0610.pdf`. Keep it updated.
+> The contract for any later session. Bootstrap with two reads: this file +
+> `AG-QREW-QWEN-PLAN (1).pdf`. Keep it updated.
+> **Deadline: July 10, 3:00 AM GMT+6 — submit on Devpost by ~6 PM July 9.**
 
-## Current state (2026-07-06, Day 2)
+## Current state (2026-07-09, Day 5 — submission day)
 
-**Day-1 foundation: DONE and typechecks clean** (`npm install` + `tsc --noEmit` both pass on Node 25 / Apple M4).
+**All code exists and typechecks.** The pipeline has run end-to-end on real Qwen multiple
+times (11 runs today). Best run so far (run #3, qwen-plus workers): 22 cases, 3 bugs filed
+including planted bug #1, full sign-off. What has NOT yet happened: a run that finds 4/4
+planted bugs + an adjudicated dispute, the baseline metrics run, ECS deploy, video, submission.
 
-Built in `orchestrator/`:
-- `package.json`, `tsconfig.json` — Node 20+ ESM + tsx, deps: openai, better-sqlite3, express, playwright, zod.
-- `src/config.ts` — typed env loader; fails fast if `DASHSCOPE_API_KEY` is missing.
-- `src/qwen.ts` — DashScope (Model Studio) client via the OpenAI-compatible SDK; retry+backoff on 429/5xx; **this is the "Alibaba Cloud API usage" file to link in the README per the rules.**
-- `src/bus.ts` — file signal bus (`qa/shared-task-list.txt`), AG-QREW grammar ported (HAWK-ENV / SECTION-DONE / MODULE-DONE / TC-READY / PROGRESS / BUG-FILED / BLOCKED / DONE), session-stamped, `allDone()` / `blockers()`.
-- `src/db.ts` — SQLite (test_cases, runs, results, bugs) — replaces TestRail/Jira.
-- `src/agentLoop.ts` — the reusable loop (§4.2): chat → tool_calls → results → loop; guards on max iterations + token budget; BLOCKED path instead of crashing.
-- **Adjudication / conflict resolution (Track-3 criterion c)** — `src/adjudicate.ts` (QA Lead as impartial judge via qwen-max, returns UPHELD/DOWNGRADED/REJECTED/RECLASSIFIED + rationale, applies severity/title effects), `src/tools/dispute.ts` (`raise_dispute` tool any worker calls when its evidence contradicts a filed bug), `disputes` table in db.ts, DISPUTE/RESOLVED signals on the bus. Turns the weakest Track-3 sub-criterion ("disagreement/conflict resolution") into a real feature. Wire-up point: the orchestrator (qaLead) drains `db.openDisputes()` in Phase 3 and calls `adjudicate()` on each; the sign-off report lists the adjudications.
+### The one blocker: model quota
 
-Repo already had (copied from AG-QREW prior art): the 5 agent `.md` prompts in `commands/`, README, CLAUDE.md, settings.json. `.env.example` rewritten for DashScope.
+The free tier gives **1M tokens per model version** (separate buckets). We burned ~5M tokens
+across 11 runs learning the runtime and the models. Verdicts (full map in
+`probeModels.ts` — run `npx tsx src/probeModels.ts`):
 
-## BLOCKER (human task, plan §8 Day 1 — "single most dangerous silent blocker")
-- **`DASHSCOPE_API_KEY` is not set.** Nothing runs on Qwen without it. Get it from Model Studio (bailian.console.alibabacloud.com), submit the hackathon credit coupon (approval can take days), and confirm the international vs Singapore region + exact model names (qwen-max / qwen-plus / qwen-vl-max). One tool-call round-trip curl to verify function calling.
+| Worker model | Verdict |
+|---|---|
+| `qwen-plus` (alias) | **GOOD — the proven config** (run #3). Bucket exhausted |
+| `qwen3-max-2025-09-23` | Best protocol quality; reasoning burns ~250k/worker. Exhausted |
+| `qwen-plus-latest`, `qwen-plus-2025-07-28` | Unreliable / mediocre. Mostly burned |
+| `qwen-flash-2025-07-28`, `qwen3-30b…` | Hopeless at the tool protocol. Burned |
+| `qwen-max-2025-01-25`, `qwen-vl-max-2025-08-13`, `qwen-turbo-latest` | 403 Access denied on this key |
 
-## DONE since Day-2 foundation (the whole runnable pipeline — typecheck clean)
-1. ✅ **Tool layer** (`src/tools/*.ts` + `index.ts` + `smoke.ts`) — all tools + per-agent registries.
-2. ✅ **Prompts** — all 5 ported to `orchestrator/prompts/` (see adaptations note below).
-3. ✅ **Orchestrator** (`src/agents/qaLead.ts`) — `runSociety()` phases 0→4, env gate, `proceed`
-   checkpoint (auto/stdin/web), dependency-ordered Phase-2 groups, dispute adjudication drain,
-   deterministic verdict. Plus `src/agents/worker.ts` (prompt loader + AgentLoop factory + task builders).
-4. ✅ **Workers** — qa-tc-writer / qa-api-tester / qa-script-writer / qa-hawk all run as `AgentLoop`
-   instances via the factory (no per-file classes; run ORDER encodes the pipeline).
-5. ✅ **demo-app/** — Express task-manager + `openapi.yaml` + `PLANTED_BUGS.md`, **4 bugs curl-verified**
-   (UI `Tasks (undefined)`, boundary >200 chars, API 200-on-error, data-refresh dispute driver).
-6. ✅ **Baseline** (`src/baseline/singleAgent.ts`) — monolithic `allTools` loop; both modes write
-   `qa/metrics.json` (keyed society/single).
-7. ✅ **server.ts + cli.ts** — Express+SSE with a **minimal inline dashboard** at `/` (Start + Proceed
-   buttons, live signal feed, bug/dispute list); CLI `--mode society|single` (+ `--interactive`, `--no-gate`).
+**Next step: enable pay-as-you-go** (payment info + disable "free tier only") → set
+`QWEN_MODEL_WORKER=qwen-plus` in `orchestrator/.env` → hero run costs <$1.
+Error semantics: **429** = per-minute rate window (the client now waits 20–60s and retries);
+**403 quota** = bucket dead (switch model); **403 access denied** = model not enabled for key.
 
-Foundation tweaks made to support the above: added `META` signal type (bus.ts + tools/bus.ts) and
-per-agent budget caps (`maxIterations`/`maxTokens`) on `AgentConfig`.
+## Fixed today (all verified, some still UNCOMMITTED — see git note)
 
-### Prompt-port adaptations (real tool set ≠ Claude Code)
-**qa-script-writer** → Playwright-as-a-library standalone `tsx` specs (no `@playwright/test`), explores via
-a probe script through `playwright_run` (it has no `browser_snapshot`), TestRail IDs → SQLite row ids.
-**qa-hawk** → SFDIPOT/FEW HICCUPPS recast onto `browser_snapshot` (qwen-vl) + `http_request`, no
-interactive click-driving, no TestRail (results via `result_record`, env verdict via `HAWK-ENV`).
+1. `better-sqlite3` ^11→^12 (the v11 binary was macOS-only; v12 has Node-24 Windows prebuilds).
+2. fs/playwright tools accept `qa/`-prefixed paths (agents address artefacts as `qa/<p>`).
+3. Playwright tools shell through cmd on win32 (`npx` is `npx.cmd` — spawn failed silently).
+4. Route documentation in the run context (`siteMap`) — qa-hawk no longer false-BLOCKs on
+   guessed paths; cli/server use `DEMO_APP_URL` (Docker networking).
+5. Phase-0 env task no longer references the test plan (which doesn't exist until Phase 1).
+6. 429 retries wait out the per-minute window (20s→60s, 6 attempts, logged).
+7. Phase 2b runs **serially** (script-writer → hawk) — parallel workers on one bucket trip TPM.
+8. tc-writer task capped: ≤8 cases/module, one `tc_store` per module (was flailing to budget death).
+9. **demo-app login actually works now** — the form had NO submit handler (accidental 5th bug,
+   credentials leaked into the query string). Wired: POST /api/auth/login → token → /tasks,
+   visible error on bad creds. Probe: `orchestrator/qa/loginProbe.ts` (wiped with qa/; original
+   in the session scratchpad). The 4 planted bugs are untouched.
+10. Budgets: `AGENT_MAX_ITERATIONS=40`, `AGENT_MAX_TOKENS=250000` (120k cut workers off; 400k
+    let bad models burn a whole bucket).
 
-## Offline proof (no API key) — `npm run demo:mock`
-`AGQREW_MOCK=1` swaps the Qwen client for a scripted mock (`src/mock/mockQwen.ts`), so the FULL
-society path runs on a throwaway DB/bus and self-checks 8 invariants (`src/mock/runMock.ts`):
-cases stored, ≥3 bugs filed, exactly 1 dispute, a **rebuttal** recorded on the bus, judge
-**RECLASSIFIED** it, disputed bug downgraded, no OPEN dispute, verdict **CONDITIONAL PASS**.
-**Verified green.** This proves the wiring (orchestration → dispute → rebuttal → adjudication →
-verdict → metrics) independent of the key. The rebuttal round was added to `adjudicate.ts`
-(`rebut()` — the filer answers the challenge before the judge rules; surfaced as a PROGRESS signal).
-Phase 2 was reordered to a correct topological order (tc-writer → {script-writer, hawk} → api-tester)
-so the disputing agent runs after the one it challenges.
+## Added today
 
-## Remaining
-- ⏳ **Full React dashboard** (`dashboard/`) — the inline one covers the demo; a real build is optional polish.
-- ⏳ **docker-compose.yml** (orchestrator + demo-app + shared `qa/` volume) + `deploy/ecs-setup.md`.
-- ⏳ **Docs**: architecture.md + Mermaid→PNG, signals.md, scope-decisions.md, README rewrite, video script.
-- ⏳ **Runtime verification of the whole pipeline** — blocked on `DASHSCOPE_API_KEY`. Everything typechecks
-  and the demo-app is proven; the first real `npm run run:society` needs the key. Expect to find 4/4 planted
-  bugs and ≥1 adjudicated dispute (bug #4 is engineered to force it).
+- `LICENSE` (MIT) · `docker-compose.yml` + `orchestrator/Dockerfile` (playwright v1.61.1 base,
+  must match package-lock) + `demo-app/Dockerfile` · `deploy/ecs-setup.md` + `deploy.sh`
+- `docs/`: `architecture.md` + **`architecture.png`** (submission requirement) + `.mmd` source,
+  `signals.md`, `scope-decisions.md`, `video-script.md`, `devpost-draft.md`
+- `orchestrator/src/probeModels.ts` — model callability probe
+- README: Docker quickstart, repo structure, status. **Metrics table still pending** the
+  society + baseline runs.
 
-## How to run (once the key is set)
+## Blockers needing the human (as of writing)
+
+1. **Pay-as-you-go billing** in Model Studio — unblocks the hero run + baseline.
+2. **GPG**: `git commit` fails with pinentry timeout in agent shells. Human must run a commit
+   in their own terminal to re-cache the passphrase (or approve committing unsigned).
+   Uncommitted: login fix, resilience fixes (6–8), README, docs, HANDOFF.
+3. **Docker Desktop** not installed on this Windows machine — blocks the local compose test.
+4. **No GitHub remote / no `gh` CLI** — repo is local-only (branch `main`, several commits).
+
+## Remaining tasks, in order
+
+1. Enable billing → `QWEN_MODEL_WORKER=qwen-plus` → wipe `orchestrator/qa`, restart demo-app,
+   `npm run run:society` → expect 4/4 planted bugs + ≥1 adjudicated dispute (bug #4 forces it).
+2. `npm run run:single` (baseline) → both rows land in `qa/metrics.json` → README table.
+3. Commit everything; push to GitHub (private → public at submission).
+4. Docker: local `docker compose up` test → ECS (2vCPU/4GB Ubuntu 24) per `deploy/ecs-setup.md`
+   → proof recording. Hard cutoff: if ECS fights back past mid-afternoon, record local Docker.
+5. Video per `docs/video-script.md` (set `PLAYWRIGHT_HEADED=1` for the browser shot).
+6. Devpost per `docs/devpost-draft.md` — submit by ~6 PM, polish after.
+
+## How to run
+
+```bash
+# app under test                      # QA society
+cd demo-app && npm start              cd orchestrator && npm run run:society
+                                      npm run run:single   # baseline
+                                      npm start             # dashboard :8787
+npm run demo:mock                     # offline proof, no key (8 invariants green)
 ```
-# terminal 1 — the app under test
-cd demo-app && npm install && npm start          # :3000
-# terminal 2 — the QA society
-cd orchestrator && cp ../.env.example .env       # paste DASHSCOPE_API_KEY
-npx tsx src/smoke.ts                              # de-risk: chat + tool call
-npm run run:society                              # or: npm run run:single  (baseline)
-npm start                                        # or the web dashboard at :8787
-```
 
-## Timing reality
-The full runnable pipeline (tasks 1–8) now exists and typechecks; only cloud deploy, the full React
-dashboard, and docs remain. The one hard dependency is the API key for end-to-end runtime verification.
+State hygiene between demo runs: kill demo-app, restart it (in-memory data), and
+`rm -rf orchestrator/qa` (DB/bus/artifacts) so counts and bugs don't carry over.

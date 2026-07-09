@@ -110,7 +110,9 @@ function siteMapLines(ctx: RunContext): string[] {
 
 export function hawkEnvTask(ctx: RunContext): string {
   return [
-    `HAWK-TASK | mode: environment | site: ${ctx.site} | test-plan: test-plan-sprint${ctx.sprint}.txt`,
+    // NB: no test-plan reference — the plan is written in Phase 1, AFTER this gate runs.
+    `HAWK-TASK | mode: environment | site: ${ctx.site}`,
+    `The test plan does not exist yet (you run before it is written) — validate the environment from this task alone.`,
     `In-scope modules to reach: ${ctx.modules.join(', ')}`,
     ...siteMapLines(ctx),
     `Credentials:`,
@@ -124,6 +126,9 @@ export function tcWriterTask(ctx: RunContext): string {
     `project: ${ctx.project} | sprint: ${ctx.sprint} | site: ${ctx.site}`,
     `Read the SFDIPOT coverage map and expected results from qa/test-plan-sprint${ctx.sprint}.txt (fs_read it).`,
     `Store each module's cases with tc_store (this emits TC-READY), then continue to the next module.`,
+    `Budget discipline: write AT MOST 8 focused cases per module (happy path, key negatives,`,
+    `one boundary each) and store a module's cases with ONE tc_store call. Depth over volume —`,
+    `you have a hard token budget and an unfinished module is worse than a lean one.`,
   ].join('\n');
 }
 

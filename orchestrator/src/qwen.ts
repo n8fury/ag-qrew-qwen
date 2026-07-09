@@ -29,7 +29,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function chat({ model, messages, tools }: ChatArgs): Promise<ChatResult> {
   if (MOCK) return mockChat({ model, messages, tools });
   const modelId = config.qwen.models[model];
-  const maxAttempts = 4;
+  const maxAttempts = 6;
   let lastErr: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -47,7 +47,11 @@ export async function chat({ model, messages, tools }: ChatArgs): Promise<ChatRe
       // Retry only on transient classes; fail fast on 4xx auth/validation.
       const retriable = status === 429 || status === undefined || (status >= 500 && status < 600);
       if (!retriable || attempt === maxAttempts) break;
-      await sleep(500 * 2 ** (attempt - 1));
+      // 429 is a per-minute token window on the free tier — wait long enough for it
+      // to roll over (20s → 40s → 60s…), not a quick exponential blip.
+      const delay = status === 429 ? Math.min(20_000 * attempt, 60_000) : 500 * 2 ** (attempt - 1);
+      if (status === 429) console.log(`  [qwen] 429 rate-limited (${modelId}) — waiting ${delay / 1000}s (attempt ${attempt}/${maxAttempts})`);
+      await sleep(delay);
     }
   }
   throw new Error(`Qwen chat failed (model=${modelId}): ${(lastErr as Error)?.message ?? lastErr}`);

@@ -85,7 +85,18 @@ UI-refresh bug. See [`adjudicate.ts`](orchestrator/src/adjudicate.ts).
 
 ## Quickstart
 
-### Option A — offline proof (no API key)
+### Option A — one command (Docker)
+
+```bash
+cp .env.example orchestrator/.env    # paste DASHSCOPE_API_KEY (International Model Studio)
+docker compose up --build
+```
+
+Then open **http://localhost:8787** → *Start run* → approve the plan at the **Proceed**
+checkpoint and watch the society work (demo-app under test at :3000). Cloud deployment:
+[deploy/ecs-setup.md](deploy/ecs-setup.md).
+
+### Option B — offline proof (no API key)
 
 Verifies the entire society path (orchestration → bug → dispute → rebuttal → adjudication →
 verdict → metrics) against a mock model:
@@ -97,7 +108,7 @@ npm run demo:mock
 
 Expect `✅ MOCK PASS` with 8 green invariants.
 
-### Option B — the real thing (needs a Qwen key)
+### Option C — bare Node (needs a Qwen key)
 
 ```bash
 # 1. the app under test
@@ -145,8 +156,10 @@ A pipeline that provably finds 4/4 known bugs is a stronger demo than one pointe
 
 ```
 ag-qrew-qwen/
-├── README.md · HANDOFF.md · .env.example · .gitignore
-├── orchestrator/
+├── README.md · HANDOFF.md · LICENSE · .env.example · docker-compose.yml
+├── docs/                   # architecture.md (+ diagram PNG) · signals.md · scope-decisions.md
+├── deploy/                 # ecs-setup.md (click-by-click Alibaba Cloud) · deploy.sh
+├── orchestrator/           # + Dockerfile
 │   ├── prompts/            # 5 agent system prompts (ported & adapted to the Qwen tools)
 │   └── src/
 │       ├── agentLoop.ts    # the reusable agent runtime
@@ -157,8 +170,12 @@ ag-qrew-qwen/
 │       ├── baseline/       # singleAgent.ts (Track-3 baseline)
 │       ├── mock/           # offline proof harness (mockQwen.ts + runMock.ts)
 │       ├── cli.ts · server.ts · smoke.ts
-└── demo-app/               # buggy target app + openapi.yaml + PLANTED_BUGS.md
+├── demo-app/               # buggy target app + openapi.yaml + PLANTED_BUGS.md + Dockerfile
+└── qa/                     # runtime artifacts (gitignored) — bus, DB, specs, screenshots, reports
 ```
+
+Deep dives: [docs/architecture.md](docs/architecture.md) ·
+[docs/signals.md](docs/signals.md) · [docs/scope-decisions.md](docs/scope-decisions.md)
 
 Two conscious deviations from a textbook layout: workers are built by a **factory** (`worker.ts`)
 from the prompt files rather than four near-identical classes; and the dashboard is an **inline
@@ -191,8 +208,9 @@ one command and no external accounts (they remain documentable as pluggable adap
 
 - ✅ Runtime, 5 agents, tool layer, demo-app (4 bugs curl-verified), baseline, CLI, server + inline dashboard — **code-complete, typecheck clean**.
 - ✅ Full society path **verified offline** via `npm run demo:mock` (no key needed).
-- ⏳ Live end-to-end run on real Qwen — pending `DASHSCOPE_API_KEY`.
-- ⏳ Docker Compose + Alibaba Cloud ECS deploy, architecture-diagram export, full React dashboard.
+- ✅ **Live end-to-end runs on real Qwen** — env gate, plan, checkpoint, all 4 workers, sign-off; planted bugs found (metrics table above from real runs).
+- ✅ Docker Compose, architecture diagram (PNG), deploy scripts.
+- ⏳ Alibaba Cloud ECS deployment + proof recording.
 
 See [HANDOFF.md](HANDOFF.md) for the exact state and remaining tasks.
 

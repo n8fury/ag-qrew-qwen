@@ -133,12 +133,12 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
   log('[phase 2a] qa-tc-writer…');
   outcomes.push(await runAgent('qa-tc-writer', deps, tcWriterTask(ctx)));
 
-  log('[phase 2b] qa-script-writer + qa-hawk explore (parallel)…');
-  const groupB = await Promise.all([
-    runAgent('qa-script-writer', deps, scriptWriterTask(ctx)),
-    runAgent('qa-hawk', deps, hawkExploreTask(ctx)),
-  ]);
-  outcomes.push(...groupB);
+  // Sequential, not Promise.all: two workers sharing one model bucket in parallel
+  // trip the free tier's per-minute token window (serial execution was the plan's
+  // designated fallback — the signal bus makes the coordination order-independent).
+  log('[phase 2b] qa-script-writer, then qa-hawk explore…');
+  outcomes.push(await runAgent('qa-script-writer', deps, scriptWriterTask(ctx)));
+  outcomes.push(await runAgent('qa-hawk', deps, hawkExploreTask(ctx)));
 
   log('[phase 2c] qa-api-tester (probes API, may dispute UI findings)…');
   outcomes.push(await runAgent('qa-api-tester', deps, apiTesterTask(ctx)));

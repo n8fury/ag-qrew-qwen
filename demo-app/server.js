@@ -174,9 +174,33 @@ app.get('/', (req, res) => {
       <label for="password">Password</label>
       <input type="password" name="password" id="password" placeholder="••••••••">
       <button type="submit" id="signin">Sign In</button>
+      <p id="login-error" style="display:none;color:#dc2626;font-size:13px;margin:10px 0 0"></p>
     </form>
     <div class="foot"><a href="/tasks">Go to tasks &rarr;</a></div>
   </div>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = document.getElementById('login-error');
+      err.style.display = 'none';
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.token) {
+        localStorage.setItem('token', body.token);
+        location.href = '/tasks';
+      } else {
+        err.textContent = body.error || 'Invalid email or password.';
+        err.style.display = 'block';
+      }
+    });
+  </script>
 </body>
 </html>`);
 });
