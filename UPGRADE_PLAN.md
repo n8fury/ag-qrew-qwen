@@ -20,6 +20,26 @@ conversation, so a 20-iteration worker burns 250–350k tokens and dies at its b
 - Cheap extras while in there: `cross-env` for the `demo:mock` script (Windows), and keep
   `probeModels.ts` — document it in README as the quota-debugging tool.
 
+## Day 1 blockers (carry into Day 2)
+
+**Context compaction implemented but insufficient.** Tool result compaction (keep last 1 verbatim, compact after 1 iteration) + 4k char caps reduce total tokens by ~16% (1.08M → 903k baseline) and pass all mock invariants. But real runs show:
+- qa-tc-writer: 317k tokens / 40 iterations (2.1× budget)
+- qa-script-writer: 356k tokens / 28 iterations (2.4× budget)
+- qa-api-tester: 322k tokens / 40 iterations (2.2× budget)
+
+**Root cause found:** `.env` has `AGENT_MAX_ITERATIONS=40` and `AGENT_MAX_TOKENS=350000` — the criterion
+was tested with these loose limits. To hit the 150k target, lower the guards: set
+`AGENT_MAX_TOKENS=150000` and optionally `AGENT_MAX_ITERATIONS=25` (or leave at 40, but
+force lower token budget). The compaction should then demonstrate it keeps workers within budget.
+
+**Next steps for Day 2:**
+- Debug iteration limit: verify config, check if agents hit maxTokens before maxIterations
+- If looping, tighten prompts to reduce model confusion
+- If still over budget after tightening, try more aggressive context pruning (prune old assistant messages, not just results)
+- Investigate Qwen API error on qa-api-tester: "function.arguments must be in JSON format"
+
+---
+
 ## Day 2 — Precision + the dispute, on camera-quality rails
 
 - [ ] False-positive discipline: worker prompts require quoting the requirement/spec line an
