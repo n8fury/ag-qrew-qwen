@@ -1,0 +1,9 @@
+QA SIGN-OFF REPORT
+==================
+Project: Demo Task Manager
+Sprint: 1
+Verdict: CONDITIONAL PASS
+
+Bugs (post-adjudication): 3 — 1 High open (contract 200-on-error), 1 reclassified (UI refresh), 1 Low (undefined header).
+Disputes: 1, all RESOLVED (RECLASSIFIED).
+Rationale: no open Critical; one High contract bug needs a fix before release.

@@ -1,0 +1,8 @@
+APP-HEALTH: PASS | Root page renders correctly per vision analysis and returns HTTP 200.
+MODULE-REACHABILITY-login: PASS | / returns 200 and renders login UI with seed data.
+MODULE-REACHABILITY-tasks: PASS | /tasks returns 200 and renders tasks UI.
+AUTH-admin: PASS | POST /api/auth/login with admin credentials returns 200 and valid token.
+AUTH-standard: PASS | POST /api/auth/login with standard user credentials returns 200 and valid token.
+API-DEPENDENCY-tasks: PASS | /api/tasks returns 401 (expected auth failure), not 500 or crash — auth layer is active.
+SEED-DATA: PASS | Login form pre-filled with admin@demo.test; tasks UI shows initial task list.
+OVERALL: READY

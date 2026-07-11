@@ -1,0 +1,17 @@
+{
+  "society": {
+    "mode": "society",
+    "wallClockMs": 9,
+    "totalTokens": 1000,
+    "bugs": 3,
+    "disputes": 1,
+    "testCases": 2,
+    "results": {
+      "pass": 1,
+      "fail": 2,
+      "blocked": 0,
+      "skip": 0
+    },
+    "verdict": "CONDITIONAL PASS"
+  }
+}

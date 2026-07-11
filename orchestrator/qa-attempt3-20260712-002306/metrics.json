@@ -1,0 +1,17 @@
+{
+  "society": {
+    "mode": "society",
+    "wallClockMs": 519546,
+    "totalTokens": 950027,
+    "bugs": 3,
+    "disputes": 0,
+    "testCases": 0,
+    "results": {
+      "pass": 0,
+      "fail": 0,
+      "blocked": 0,
+      "skip": 0
+    },
+    "verdict": "FAIL"
+  }
+}

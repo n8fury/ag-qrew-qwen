@@ -1,0 +1,23 @@
+META: project_name=Demo Task Manager | sprint=1 | site=http://localhost:3000 | api_spec=qa/openapi.yaml | from: qa-lead | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T17:56:32.417Z
+HAWK-ENV: READY | qa/reports/hawk-env-sprint-1.txt | from: qa-hawk | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T17:57:19.135Z
+DONE: qa-hawk | from: qa-hawk | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T17:57:20.738Z
+DONE: qa-lead | from: qa-lead | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T17:57:55.130Z
+BLOCKED: qa-tc-writer exceeded token budget (358157) | from: qa-tc-writer | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T17:58:34.993Z
+PROGRESS: qa-script-writer | Tiers 1-2 ready | auth, tasks | from: qa-script-writer | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T17:59:18.482Z
+BLOCKED: qa-script-writer exceeded token budget (357478) | from: qa-script-writer | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:09:28.859Z
+PROGRESS: qa-hawk | smoke | auth | START | from: qa-hawk | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:09:39.657Z
+PROGRESS: qa-hawk | smoke | auth | PASS | from: qa-hawk | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:10:03.048Z
+PROGRESS: qa-hawk | smoke | tasks | START | from: qa-hawk | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:10:03.048Z
+BUG-FILED: #1 [High] Tasks UI: Header shows 'Tasks (undefined)' instead of accurate count when page loads | from: qa-hawk | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:10:28.768Z
+PROGRESS: qa-hawk | smoke | tasks | FAIL | header task count undefined | from: qa-hawk | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:10:28.769Z
+PROGRESS: qa-hawk | explore | auth | SKIP | smoke failed for tasks — auth not explored | from: qa-hawk | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:10:30.165Z
+DONE: qa-hawk | from: qa-hawk | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:10:32.668Z
+PROGRESS: qa-api-tester | parsing spec | 1/1 | from: qa-api-tester | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:10:43.973Z
+SECTION-DONE: qa-api-tester | spec parsing | 1 endpoints | 1 pass, 0 fail | from: qa-api-tester | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:10:45.827Z
+PROGRESS: qa-api-tester | /tasks | 0/4 endpoints | from: qa-api-tester | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:10:46.974Z
+BUG-FILED: #2 [High] POST /api/tasks returns 200 with error body for missing title | from: qa-api-tester | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:11:15.522Z
+PROGRESS: qa-api-tester | /tasks | 2/4 endpoints | from: qa-api-tester | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:11:20.312Z
+BUG-FILED: #3 [High] GET /api/tasks/{id} returns 404 for existing task ID | from: qa-api-tester | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:11:28.944Z
+BLOCKED: qa-api-tester API error: Qwen chat failed (model=qwen-plus): 400 <400> InternalError.Algo.InvalidParameter: The "function.arguments" parameter of the code model must be in JSON format. | from: qa-api-tester | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:11:37.888Z
+DONE: qa-lead | sign-off-report.txt | verdict: FAIL | from: qa-lead | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:12:05.588Z
+DONE: qa-lead | from: qa-lead | session: society-2026-07-11T17-56-32-399Z | ts: 2026-07-11T18:12:07.881Z

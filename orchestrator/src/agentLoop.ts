@@ -36,6 +36,41 @@ export interface AgentOutcome {
   iterations: number; tokens: number; finalText: string;
 }
 
+// ── Context management ────────────────────────────────────────────────────────
+// Every iteration re-sends the whole conversation, so without pruning a
+// 20-iteration worker burns 250–350k tokens and dies at its budget. Two guards:
+//   1. cap any single tool result at insertion time (playwright/http already cap
+//      their own output; this is the enforcement point for fs_read, tc_list, …)
+//   2. once a tool result has been consumed for ≥3 iterations AND is not one of
+//      the 3 most recent results, collapse it in place to a 1–2 line summary.
+// The system prompt and the task message are never touched.
+const MAX_TOOL_RESULT_CHARS = 4000;
+const KEEP_LAST_RESULTS_VERBATIM = 1;  // keep only the very last result verbatim
+const COMPACT_AFTER_ITERATIONS = 1;    // compact aggressively: after just 1 iteration
+
+interface ToolResultRef {
+  msgIndex: number;      // position of the tool message in `messages`
+  insertedIter: number;  // iteration whose tool_calls produced it
+  summary: string;       // precomputed 1–2 line replacement
+  compacted: boolean;
+}
+
+/** Short human hint of what the call was, e.g. `fs_read test-plan-sprint1.txt`. */
+function callHint(name: string, args: any): string {
+  if (!args || typeof args !== 'object') return name;
+  if (name === 'http_request') return `${name} ${args.method ?? ''} ${args.url ?? ''}`.trim();
+  const key = args.path ?? args.specPath ?? args.url ?? args.module ?? args.title ?? args.type;
+  return key !== undefined ? `${name} ${String(key)}` : name;
+}
+
+/** 1–2 line summary a stale tool result is replaced with (first line kept as the gist). */
+function summarizeToolResult(hint: string, result: string): string {
+  const lines = result.split('\n');
+  const gist = (lines.find((l) => l.trim()) ?? '(empty)').trim().slice(0, 160);
+  const size = lines.length > 1 ? ` …(${lines.length} lines total)` : '';
+  return `[tool result truncated: ${hint} → ${gist}${size} — re-run the tool if you need the full output]`;
+}
+
 export class AgentLoop {
   constructor(private cfg: AgentConfig) {}
 
@@ -49,8 +84,20 @@ export class AgentLoop {
       { role: 'user', content: task },
     ];
     let tokens = 0;
+    const toolResults: ToolResultRef[] = [];
 
     for (let iter = 1; iter <= maxIterations; iter++) {
+      // Compact stale tool results before re-sending the conversation: anything
+      // consumed for ≥COMPACT_AFTER_ITERATIONS iterations, except the newest
+      // KEEP_LAST_RESULTS_VERBATIM results, shrinks to its summary line.
+      for (let i = 0; i < toolResults.length - KEEP_LAST_RESULTS_VERBATIM; i++) {
+        const ref = toolResults[i];
+        if (!ref.compacted && iter - ref.insertedIter > COMPACT_AFTER_ITERATIONS) {
+          (messages[ref.msgIndex] as { content: string }).content = ref.summary;
+          ref.compacted = true;
+        }
+      }
+
       let res;
       try {
         res = await chat({ model, messages, tools: toolSchemas });
@@ -66,17 +113,29 @@ export class AgentLoop {
         for (const call of msg.tool_calls) {
           const tool = tools[call.function.name];
           let result: string;
+          let args: any = {};
           if (!tool) {
             result = `ERROR: unknown tool ${call.function.name}`;
           } else {
             try {
-              const args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
+              args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
               result = await tool.run(args);
             } catch (err: any) {
               result = `ERROR executing ${call.function.name}: ${err.message}`;
             }
           }
+          if (result.length > MAX_TOOL_RESULT_CHARS) {
+            result = result.slice(0, MAX_TOOL_RESULT_CHARS) +
+              `\n…[truncated at ${MAX_TOOL_RESULT_CHARS} of ${result.length} chars — re-run the tool with a narrower request if you need the rest]`;
+          }
+          const hint = callHint(call.function.name, args);
           messages.push({ role: 'tool', tool_call_id: call.id, content: result });
+          toolResults.push({
+            msgIndex: messages.length - 1,
+            insertedIter: iter,
+            summary: summarizeToolResult(hint, result),
+            compacted: false,
+          });
         }
         if (tokens > maxTokens) {
           bus.write('BLOCKED', `${name} exceeded token budget (${tokens})`, name);

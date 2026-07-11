@@ -1,0 +1,52 @@
+=== AUTH MODULE CHARTER ===
+Mission: Validate login flow, auth token issuance, and session integrity.
+Scope: / (login UI), POST /api/auth/login, /tasks (post-login)
+Risk level: High (auth is foundational)
+Top 3 risk areas: 1. Credential handling, 2. Token leakage, 3. Session hijacking
+SFDIPOT: S✓ F✓ D✓ I✓ P✓ O✓ T✓
+
+=== TASKS MODULE CHARTER ===
+Mission: Validate task CRUD, count accuracy, and UI/API data consistency.
+Scope: /tasks (UI), GET/POST/PUT/DELETE /api/tasks
+Risk level: High (core user value)
+Top 3 risk areas: 1. Task count mismatch (PRIORITY ORACLE #1), 2. UI/API state divergence (PRIORITY ORACLE #2), 3. IDOR in task access
+SFDIPOT: S✓ F✓ D✓ I✓ P✓ O✓ T✓
+
+=== BUG #1 ===
+title: Tasks UI: Header shows 'Tasks (undefined)' instead of actual count when tasks exist
+severity: High
+module: tasks
+oracle: PRIORITY ORACLE #1: the tasks page header must show an accurate task count
+steps: 1. Log in as admin.
+2. Navigate to /tasks.
+3. Observe the header text.
+expected: Header displays 'Tasks (7)'
+actual: Header displays 'Tasks (undefined)'
+evidence: qa/screenshots/snap-003.png
+
+=== BUG #2 ===
+title: Tasks UI: After API DELETE, UI shows 7 tasks but header displays 'Tasks (undefined)' — violates PRIORITY ORACLE #2
+severity: High
+module: tasks
+oracle: PRIORITY ORACLE #2: after any create/delete through the API, the tasks PAGE must reflect the current list
+steps: 1. Log in as admin.
+2. POST /api/tasks to create a task.
+3. GET /api/tasks → confirms 7 tasks.
+4. DELETE /api/tasks/1 → confirms deletion.
+5. GET /api/tasks → confirms 6 tasks remain.
+6. Navigate to /tasks → UI shows 7 tasks and 'Tasks (undefined)'.
+expected: UI header shows 'Tasks (6)' and lists exactly 6 tasks.
+actual: UI header shows 'Tasks (undefined)' and lists 7 tasks (including deleted task ID 1).
+evidence: qa/screenshots/snap-004.png
+
+=== BUG #3 ===
+title: Tasks API: Standard user receives 404 on GET /api/tasks/{id} — violates access control (IDOR prevention)
+severity: Critical
+module: tasks
+oracle: OWASP A01: Broken Access Control
+steps: 1. Log in as standard user (user@demo.test).
+2. Issue GET /api/tasks/1 with valid auth token.
+3. Observe response.
+expected: HTTP 403 Forbidden or 401 Unauthorized, or a 200 with only the user's own tasks.
+actual: HTTP 404 Not Found with HTML error page.
+evidence: HTTP 404 response body and status code

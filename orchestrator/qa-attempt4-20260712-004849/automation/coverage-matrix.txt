@@ -1,0 +1,7 @@
+COVERAGE MATRIX — 1
+Module     TC           RowID   Spec                         Result
+auth       TC-AUTH-001  #1      specs/auth.spec.ts           FAIL
+auth       TC-AUTH-002  #2      specs/auth.spec.ts           FAIL
+tasks      TC-TASKS-001 #3      specs/tasks.spec.ts          FAIL
+tasks      TC-TASKS-002 #4      specs/tasks.spec.ts          FAIL
+Total: 4   Passed: 0   Failed: 4   Skipped: 0   Coverage: 0/4   Flaky: 0

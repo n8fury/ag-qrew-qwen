@@ -89,6 +89,11 @@ async function main() {
   console.log(`\n=== VERDICT: ${res.verdict} ===`);
   console.log(`bugs: ${res.metrics.bugs} | disputes: ${res.metrics.disputes} | cases: ${res.metrics.testCases} | tokens: ${res.metrics.totalTokens} | ${Math.round(res.metrics.wallClockMs / 1000)}s`);
   if (res.blockers.length) console.log(`blockers: ${res.blockers.map((b) => b.payload).join('; ')}`);
+  console.log(`per-agent tokens:`);
+  for (const o of res.outcomes) {
+    const over = o.tokens > 150_000 ? ` ⚠️  (over 150k target)` : '';
+    console.log(`  ${o.name}: ${o.tokens} tokens, ${o.iterations} iterations, status ${o.status}${over}`);
+  }
   for (const b of res.bugs) console.log(`  bug #${b.id} [${b.severity}] (${b.module}) ${b.title}`);
 }
 

@@ -1,0 +1,26 @@
+META: project_name=Demo Task Manager | sprint=1 | site=http://localhost:3000 | api_spec=qa/openapi.yaml | from: qa-lead | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:23:14.144Z
+HAWK-ENV: READY | qa/reports/hawk-env-1.txt | from: qa-hawk | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:23:59.013Z
+DONE: qa-hawk | from: qa-hawk | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:24:00.028Z
+PROGRESS: qa-lead | test plan written | test-plan-sprint1.txt | 2 features | risk 4/10 | from: qa-lead | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:24:32.599Z
+DONE: qa-lead | from: qa-lead | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:24:35.114Z
+BLOCKED: qa-tc-writer hit iteration cap | from: qa-tc-writer | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:25:12.334Z
+PROGRESS: qa-script-writer | Tiers 1-2 ready | auth, tasks | from: qa-script-writer | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:25:53.141Z
+BUG-FILED: #1 [High] Login redirects to /tasks but waitForURL('/tasks') times out | from: qa-script-writer | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:27:46.703Z
+SECTION-DONE: qa-script-writer | auth | 2 cases | 0 pass, 2 fail | from: qa-script-writer | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:27:50.782Z
+SECTION-DONE: qa-script-writer | tasks | 2 cases | 0 pass, 2 fail | from: qa-script-writer | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:27:50.782Z
+DONE: qa-script-writer | auth.spec.ts, tasks.spec.ts | 0 pass, 4 fail, 0 skip | coverage: 0% | flaky: 0 | matrix: automation/coverage-matrix.txt | from: qa-script-writer | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:27:56.115Z
+DONE: qa-script-writer | from: qa-script-writer | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:27:58.856Z
+BUG-FILED: #2 [High] Tasks UI: Header shows 'Tasks (undefined)' instead of accurate count when page loads | from: qa-hawk | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:29:35.991Z
+BUG-FILED: #3 [Critical] Tasks UI: Missing checkboxes prevent users from marking tasks as complete | from: qa-hawk | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:29:35.991Z
+BUG-FILED: #4 [Critical] Tasks UI/API Sync: Task count mismatch — UI shows 'Tasks (undefined)' while API returns 8 tasks | from: qa-hawk | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:29:41.839Z
+SECTION-DONE: qa-hawk | auth | 0 pass, 0 fail, 0 blocked | 0 bugs | confidence: HIGH | sfdipot: S✓F✓D✓I✓P✓O✓T✓ | from: qa-hawk | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:29:41.840Z
+SECTION-DONE: qa-hawk | tasks | 0 pass, 0 fail, 0 blocked | 3 bugs | confidence: HIGH | sfdipot: S✓F✓D✓I✓P✓O✓T✓ | from: qa-hawk | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:29:41.840Z
+DONE: qa-hawk | from: qa-hawk | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:29:54.303Z
+PROGRESS: qa-api-tester | parsing spec | 0/156 lines | from: qa-api-tester | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:30:06.279Z
+PROGRESS: qa-api-tester | parsing spec | 156/156 lines | from: qa-api-tester | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:30:08.360Z
+PROGRESS: qa-api-tester | tasks | 0/5 endpoints | from: qa-api-tester | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:30:09.634Z
+BUG-FILED: #5 [High] GET /api/tasks returns 200 with error body when token is malformed | from: qa-api-tester | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:30:22.713Z
+BUG-FILED: #6 [High] POST /api/tasks returns 200 with error body when title is empty | from: qa-api-tester | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:30:35.739Z
+BLOCKED: qa-api-tester API error: Qwen chat failed (model=qwen-plus): 400 <400> InternalError.Algo.InvalidParameter: The "function.arguments" parameter of the code model must be in JSON format. | from: qa-api-tester | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:30:45.835Z
+DONE: sign-off-report.txt | verdict: FAIL | from: qa-lead | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:31:17.572Z
+DONE: qa-lead | from: qa-lead | session: society-2026-07-11T18-23-14-131Z | ts: 2026-07-11T18:31:21.372Z

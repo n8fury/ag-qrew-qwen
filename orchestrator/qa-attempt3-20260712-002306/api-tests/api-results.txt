@@ -1,0 +1,9 @@
+API RESULTS — Demo Task Manager / 1
+========================================
+
+RESOURCE: auth
+  POST /auth/login — happy path (admin) → HTTP 200, token present → PASS
+  POST /auth/login — happy path (user) → HTTP 200, token present → PASS
+  POST /auth/login — wrong password → HTTP 401 (expected 401) → PASS
+  POST /auth/login — missing password → HTTP 401 (expected 401) → PASS
+  POST /auth/login — empty password → HTTP 401 (expected 401) → PASS

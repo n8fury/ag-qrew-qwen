@@ -1,0 +1,9 @@
+App health: PASS — root renders a real login UI, no crash or error screen.
+Module reachability — /tasks: PASS — returns 200 HTML and renders task list.
+Module reachability — /api/auth/login: PASS — accepts admin credentials and returns token.
+Module reachability — /api/auth/login: PASS — accepts standard user credentials and returns token.
+Auth — admin login: PASS — valid credentials accepted, token issued.
+Auth — standard user login: PASS — valid credentials accepted, token issued.
+Dependencies: N/A — no external dependencies named in task.
+Seed data: PASS — /tasks shows 3 seeded tasks with correct status and ownership.
+OVERALL: READY

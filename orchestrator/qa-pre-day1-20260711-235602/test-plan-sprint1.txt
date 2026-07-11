@@ -1,0 +1,16 @@
+TEST PLAN
+=========
+Project: Demo Task Manager
+Sprint: 1
+Sprint Risk Score: 5/10 — MEDIUM
+
+2. SCOPE
+- auth (login)  P1 H
+- tasks (CRUD)  P1 H
+
+6. FEATURE ANALYSIS
+--- Feature: tasks ---
+SFDIPOT: Function (create/delete), Data (title max 200), Structure (list + count).
+Oracles: Claims, Standards, History.
+MUST work: create with valid title → 201; list shows accurate count.
+MUST handle: missing/over-length title → 400; deleted task disappears from the list.

@@ -210,6 +210,13 @@ All model calls go through the DashScope (Model Studio) OpenAI-compatible endpoi
 (`DASHSCOPE_API_KEY`, `QWEN_BASE_URL`, `QWEN_MODEL_LEAD/WORKER/VISION`). Use the **International
 Model Studio** console (Singapore) so the key matches the `dashscope-intl` endpoint.
 
+**Quota debugging:** `npx tsx src/probeModels.ts` (from `orchestrator/`) sends one tiny request
+to each candidate Qwen model and prints `OK` or the HTTP error per model — the fastest way to
+see which free-tier buckets your key can actually use. Reading the output: **429** means the
+per-minute rate window is exhausted (wait; the client retries these automatically), while
+**403** means the model's quota/billing bucket is not available to your key at all (fix it in
+the Model Studio console, don't retry).
+
 ---
 
 ## Attribution
