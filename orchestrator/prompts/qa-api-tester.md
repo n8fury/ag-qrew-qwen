@@ -35,9 +35,13 @@ Never fabricate a base URL, a spec, or a token. If the task message omits the sp
 
 ## Step 0 — Reach the API
 
-Before parsing anything, confirm the API answers. `http_request` a cheap endpoint from the spec (a `GET` health/root/list endpoint, no auth if one exists).
+Before parsing anything, confirm the API answers with ONE request to an endpoint **that is
+actually in the spec** (e.g. `POST /api/auth/login` with the given credentials, or a `GET`
+list endpoint). Do NOT probe guessed paths like `/health`, `/api/health`, or `/api/v1/status`
+that the spec never mentions.
 
-- HTTP 200 / 401 / 403 → server reachable. Continue.
+- **ANY HTTP status — 200, 4xx, even 404/405 — proves the server is reachable. Continue.**
+  A status code means the server answered; only a transport failure means it did not.
 - 301 / 302 → follow the `location` header; use the resolved base URL for all later requests.
 - `ERROR: request failed …` (connection refused or timeout) → retry up to **3 times**. If all 3 fail, `bus_write` `BLOCKED: qa-api-tester | {baseURL} unreachable after 3 retries | waiting for dev` and stop. Do not test against a dead server.
 

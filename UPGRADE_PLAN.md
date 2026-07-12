@@ -20,23 +20,34 @@ conversation, so a 20-iteration worker burns 250–350k tokens and dies at its b
 - Cheap extras while in there: `cross-env` for the `demo:mock` script (Windows), and keep
   `probeModels.ts` — document it in README as the quota-debugging tool.
 
-## Day 1 blockers (carry into Day 2)
+## Day 1 blockers — RESOLVED (root causes + fixes, 2026-07-12)
 
-**Context compaction implemented but insufficient.** Tool result compaction (keep last 1 verbatim, compact after 1 iteration) + 4k char caps reduce total tokens by ~16% (1.08M → 903k baseline) and pass all mock invariants. But real runs show:
-- qa-tc-writer: 317k tokens / 40 iterations (2.1× budget)
-- qa-script-writer: 356k tokens / 28 iterations (2.4× budget)
-- qa-api-tester: 322k tokens / 40 iterations (2.2× budget)
+The Day-1 over-budget numbers had four stacked root causes, all fixed:
 
-**Root cause found:** `.env` has `AGENT_MAX_ITERATIONS=40` and `AGENT_MAX_TOKENS=350000` — the criterion
-was tested with these loose limits. To hit the 150k target, lower the guards: set
-`AGENT_MAX_TOKENS=150000` and optionally `AGENT_MAX_ITERATIONS=25` (or leave at 40, but
-force lower token budget). The compaction should then demonstrate it keeps workers within budget.
+1. **Loose guards**: `.env` overrode config with `AGENT_MAX_ITERATIONS=40` / `AGENT_MAX_TOKENS=350000`.
+   → Now 25 / 150000 in `.env`, `.env.example`, and the config fallback.
+2. **Degenerate tool-call loops**: qa-tc-writer NEVER stored a case in any run (0 rows in every
+   attempt DB) — it burned 40 iterations in ~37s re-issuing identical calls (its prompt said
+   "poll the bus / filesystem"). Each iteration costs a ~6–7k-token fixed floor (system prompt +
+   schemas), so 40 iterations ≈ 300k tokens regardless of compaction.
+   → AgentLoop loop guard (identical-call detection + nudge), prompt de-polling, per-iteration
+   trace logging (`[agent] iter i/N · +tok · tools`).
+3. **Malformed JSON tool arguments** (the qa-api-tester killer): qwen-plus emits
+   `function.arguments` with literal newlines/fences on big payloads; the malformed assistant
+   message stays in history and DashScope 400s the NEXT request ("function.arguments must be in
+   JSON format") — non-retriable death.
+   → `parseToolArgs` repairs (escape control chars in strings, strip fences, trailing commas)
+   and the loop ALWAYS rewrites valid JSON back into history.
+4. **Assistant-side context bloat**: tool-RESULT compaction existed, but `fs_write`/`tc_store`
+   payloads live in assistant `tool_calls.arguments` and were re-sent forever (probe showed
+   +19k tok/iter by iteration 12).
+   → Stale assistant arguments >400 chars collapse to a JSON stub after the same
+   keep-last/compact-after rules as results.
 
-**Next steps for Day 2:**
-- Debug iteration limit: verify config, check if agents hit maxTokens before maxIterations
-- If looping, tighten prompts to reduce model confusion
-- If still over budget after tightening, try more aggressive context pruning (prune old assistant messages, not just results)
-- Investigate Qwen API error on qa-api-tester: "function.arguments must be in JSON format"
+**Proof**: `src/probeTcWriter.ts` (single-agent live probe, ~5% the cost of a society run):
+qa-tc-writer went from never-finishing (317k tok / 40 iters / 0 cases) to
+**done in 8 iterations / 71,695 tokens / 13 cases stored** — under half the 150k budget.
+Mock: all 8 invariants green. Full society verification run: see Day 2 notes.
 
 ---
 

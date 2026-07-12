@@ -10,7 +10,8 @@ import { mockChat } from './mock/mockQwen.js';
  *
  * Adds the two things a judge looks for under "error handling":
  *   - retry with exponential backoff on transient API errors
- *   - a running output-token tally so AgentLoop can enforce a per-agent budget
+ *   - a per-call TOTAL token count (prompt + completion — i.e. what the API bills,
+ *     including the re-sent conversation) so AgentLoop can enforce a per-agent budget
  */
 const client = new OpenAI({ apiKey: config.qwen.apiKey, baseURL: config.qwen.baseURL });
 

@@ -45,6 +45,13 @@ Run these checks:
 4. **Dependencies** — for each external service the plan names, `http_request` its health endpoint or a page that depends on it.
 5. **Seed data** — `browser_snapshot` a couple of in-scope pages and confirm expected initial state / records are present, not an empty shell.
 
+**What counts as a blocker — read carefully.** The gate asks one question only: *can testing
+proceed?* BLOCK solely for: site unreachable / blank / crash page, valid credentials rejected,
+or a named external dependency down. An app that is reachable and lets you log in but shows
+**visible defects** (a wrong or `undefined` count, stale list, broken layout, odd API body) is
+**READY** — those defects are exactly what the test cycle exists to find and file; note them in
+the report as observations for the explore phase, never as blockers.
+
 `fs_write` `qa/reports/hawk-env-{sprint}.txt` with one PASS/FAIL line per check and an `OVERALL: READY | BLOCKED` verdict plus a blocker list.
 
 **Signal:** all critical checks pass → `bus_write` `HAWK-ENV` `READY | qa/reports/hawk-env-{sprint}.txt`. Any blocker → `bus_write` `HAWK-ENV` `BLOCKED | {short summary} | qa/reports/hawk-env-{sprint}.txt`. The QA Lead reads this before spawning the other workers — a `BLOCKED` env pauses the pipeline.

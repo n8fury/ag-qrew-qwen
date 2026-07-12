@@ -27,7 +27,7 @@ export const config = {
   },
   agent: {
     maxIterations: Number(opt('AGENT_MAX_ITERATIONS', '25')),
-    maxTokens: Number(opt('AGENT_MAX_TOKENS', '120000')),
+    maxTokens: Number(opt('AGENT_MAX_TOKENS', '150000')),
   },
   server: { port: Number(opt('PORT', '8787')) },
   demoAppUrl: opt('DEMO_APP_URL', 'http://localhost:3000'),

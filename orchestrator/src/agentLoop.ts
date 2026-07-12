@@ -45,13 +45,31 @@ export interface AgentOutcome {
 //      the 3 most recent results, collapse it in place to a 1–2 line summary.
 // The system prompt and the task message are never touched.
 const MAX_TOOL_RESULT_CHARS = 4000;
-const KEEP_LAST_RESULTS_VERBATIM = 1;  // keep only the very last result verbatim
-const COMPACT_AFTER_ITERATIONS = 1;    // compact aggressively: after just 1 iteration
+// Keep-last 3 / compact-after 2 (NOT 1/1): the agent is usually still working
+// FROM its most recent reads — compacting the test plan away one iteration
+// after reading it forced qa-tc-writer into an endless re-read loop (19×
+// fs_read of the same file in run #6).
+const KEEP_LAST_RESULTS_VERBATIM = 3;
+const COMPACT_AFTER_ITERATIONS = 2;
 
 interface ToolResultRef {
   msgIndex: number;      // position of the tool message in `messages`
   insertedIter: number;  // iteration whose tool_calls produced it
   summary: string;       // precomputed 1–2 line replacement
+  compacted: boolean;
+}
+
+// Assistant tool-call ARGUMENTS need the same treatment as results: an fs_write
+// or tc_store call carries the entire file/case payload in its arguments, and
+// re-sending those every iteration is what pushed qa-tc-writer to ~19k tokens
+// per call by iteration 12. Stale big arguments collapse to a stub (valid JSON —
+// DashScope rejects history with non-JSON arguments).
+const MAX_STALE_ARG_CHARS = 400;
+
+interface AssistantCallRef {
+  msgIndex: number;
+  insertedIter: number;
+  hints: string[];       // per tool_call, e.g. "fs_write qa/test-cases/auth-tc.txt"
   compacted: boolean;
 }
 
@@ -68,7 +86,52 @@ function summarizeToolResult(hint: string, result: string): string {
   const lines = result.split('\n');
   const gist = (lines.find((l) => l.trim()) ?? '(empty)').trim().slice(0, 160);
   const size = lines.length > 1 ? ` …(${lines.length} lines total)` : '';
-  return `[tool result truncated: ${hint} → ${gist}${size} — re-run the tool if you need the full output]`;
+  // NEVER invite a re-run here — an earlier "re-run the tool if you need the
+  // full output" wording sent qwen-plus into infinite re-read loops.
+  return `[stale tool result compacted: ${hint} → ${gist}${size} — already consumed; do NOT call this tool with the same arguments again]`;
+}
+
+// ── Tool-argument parsing ─────────────────────────────────────────────────────
+// qwen-plus sometimes emits function.arguments that are not valid JSON (literal
+// newlines inside strings, markdown fences, trailing commas) — most often on
+// large payloads like tc_store's cases array. Two consequences without repair:
+//   1. JSON.parse fails locally → tool errors → the model retries → iteration churn
+//   2. the malformed assistant message stays in history and DashScope 400s the
+//      NEXT request ("function.arguments must be in JSON format") — a fatal,
+//      non-retriable kill (this is what took out qa-api-tester).
+// So: repair what we can, and ALWAYS write valid JSON back into the message.
+
+/** Escape raw control characters that appear inside JSON string literals. */
+function escapeControlCharsInStrings(s: string): string {
+  let out = '';
+  let inString = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inString) {
+      if (c === '\\') { out += c + (s[i + 1] ?? ''); i++; continue; }
+      if (c === '"') { inString = false; out += c; continue; }
+      if (c === '\n') { out += '\\n'; continue; }
+      if (c === '\r') { out += '\\r'; continue; }
+      if (c === '\t') { out += '\\t'; continue; }
+      out += c;
+    } else {
+      if (c === '"') inString = true;
+      out += c;
+    }
+  }
+  return out;
+}
+
+/** Parse tool-call arguments, repairing common model mistakes. Null = unrepairable. */
+export function parseToolArgs(rawIn: string | null | undefined): { args: any } | null {
+  const raw = (rawIn ?? '').trim();
+  if (!raw) return { args: {} };
+  try { return { args: JSON.parse(raw) }; } catch { /* try repairs below */ }
+  let t = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
+  t = escapeControlCharsInStrings(t);
+  try { return { args: JSON.parse(t) }; } catch { /* one more repair */ }
+  t = t.replace(/,\s*([}\]])/g, '$1'); // trailing commas
+  try { return { args: JSON.parse(t) }; } catch { return null; }
 }
 
 export class AgentLoop {
@@ -85,6 +148,13 @@ export class AgentLoop {
     ];
     let tokens = 0;
     const toolResults: ToolResultRef[] = [];
+    const assistantCalls: AssistantCallRef[] = [];
+    // Loop guard: count identical (tool, args) calls WITH identical results — a
+    // model stuck re-issuing the same call burns the whole iteration budget
+    // (qa-tc-writer: 40 iterations in ~37s on Day 1; 19× fs_read in run #6).
+    // A repeated call whose result CHANGED (e.g. bus_read after new signals)
+    // resets the counter — that repetition is legitimate.
+    const seenCalls = new Map<string, { n: number; last: string }>();
 
     for (let iter = 1; iter <= maxIterations; iter++) {
       // Compact stale tool results before re-sending the conversation: anything
@@ -96,6 +166,20 @@ export class AgentLoop {
           (messages[ref.msgIndex] as { content: string }).content = ref.summary;
           ref.compacted = true;
         }
+      }
+      // Same for stale assistant tool-call arguments (skip the newest message).
+      for (let i = 0; i < assistantCalls.length - 1; i++) {
+        const ref = assistantCalls[i];
+        if (ref.compacted || iter - ref.insertedIter <= COMPACT_AFTER_ITERATIONS) continue;
+        const m = messages[ref.msgIndex] as { tool_calls?: { function: { arguments: string } }[] };
+        m.tool_calls?.forEach((c, j) => {
+          if (c.function.arguments.length > MAX_STALE_ARG_CHARS) {
+            c.function.arguments = JSON.stringify({
+              _compacted: `${ref.hints[j] ?? 'call'} — arguments elided (${c.function.arguments.length} chars, already executed)`,
+            });
+          }
+        });
+        ref.compacted = true;
       }
 
       let res;
@@ -110,15 +194,28 @@ export class AgentLoop {
       messages.push(msg as ChatCompletionMessageParam);
 
       if (msg.tool_calls && msg.tool_calls.length) {
+        const trace: string[] = [];
+        const callRef: AssistantCallRef = {
+          msgIndex: messages.length - 1, insertedIter: iter, hints: [], compacted: false,
+        };
+        assistantCalls.push(callRef);
         for (const call of msg.tool_calls) {
           const tool = tools[call.function.name];
+          const parsed = parseToolArgs(call.function.arguments);
+          // Always write valid JSON back into the assistant message — DashScope
+          // rejects the whole NEXT request (400, non-retriable) if history
+          // contains non-JSON function.arguments.
+          call.function.arguments = parsed ? JSON.stringify(parsed.args) : '{}';
+          const args: any = parsed?.args ?? {};
           let result: string;
-          let args: any = {};
           if (!tool) {
             result = `ERROR: unknown tool ${call.function.name}`;
+          } else if (!parsed) {
+            result = `ERROR: the arguments of your ${call.function.name} call were not valid JSON and could not be repaired. ` +
+              `Re-issue the call with STRICTLY valid JSON: escape every newline inside a string as \\n, no trailing commas, no markdown fences. ` +
+              `If the payload is large, split it into smaller calls.`;
           } else {
             try {
-              args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
               result = await tool.run(args);
             } catch (err: any) {
               result = `ERROR executing ${call.function.name}: ${err.message}`;
@@ -128,7 +225,23 @@ export class AgentLoop {
             result = result.slice(0, MAX_TOOL_RESULT_CHARS) +
               `\n…[truncated at ${MAX_TOOL_RESULT_CHARS} of ${result.length} chars — re-run the tool with a narrower request if you need the rest]`;
           }
+          // Loop guard: nudge at 3 identical (call, result) pairs; at 5, stop
+          // feeding the result back at all — the content itself is the bait.
+          const sig = `${call.function.name}|${call.function.arguments}`;
+          const prev = seenCalls.get(sig);
+          const repeats = prev && prev.last === result ? prev.n + 1 : 1;
+          seenCalls.set(sig, { n: repeats, last: result });
+          if (repeats >= 5) {
+            result = `[loop guard] Call #${repeats} of ${call.function.name} with identical arguments and an identical result. ` +
+              `The result is now WITHHELD. You are stuck in a loop. Issue a DIFFERENT call that advances your task ` +
+              `(your next deliverable per your instructions), or finish with a plain-text summary of what is done and what is blocked.`;
+          } else if (repeats >= 3) {
+            result += `\n\n[loop guard] You have now made this EXACT call ${repeats} times and received the SAME result each time. ` +
+              `Do NOT repeat it — you already have this information. Move on to your next deliverable.`;
+          }
           const hint = callHint(call.function.name, args);
+          callRef.hints.push(hint);
+          trace.push(`${hint}${parsed ? '' : ' [bad-json]'}${repeats >= 3 ? ` [x${repeats}]` : ''}`);
           messages.push({ role: 'tool', tool_call_id: call.id, content: result });
           toolResults.push({
             msgIndex: messages.length - 1,
@@ -137,6 +250,7 @@ export class AgentLoop {
             compacted: false,
           });
         }
+        console.log(`  [${name}] iter ${iter}/${maxIterations} · +${res.usageTokens} tok (total ${tokens}) · ${trace.join(' ; ')}`);
         if (tokens > maxTokens) {
           bus.write('BLOCKED', `${name} exceeded token budget (${tokens})`, name);
           return { name, status: 'exhausted', iterations: iter, tokens, finalText: '' };
@@ -146,6 +260,7 @@ export class AgentLoop {
 
       // Plain text turn — treat as completion.
       const text = (msg.content ?? '').toString();
+      console.log(`  [${name}] iter ${iter}/${maxIterations} · +${res.usageTokens} tok (total ${tokens}) · done (text turn)`);
       bus.write('DONE', name, name);
       return { name, status: 'done', iterations: iter, tokens, finalText: text };
     }
