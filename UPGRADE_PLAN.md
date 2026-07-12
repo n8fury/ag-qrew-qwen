@@ -86,6 +86,33 @@ so it's likely a version/path mismatch in the spawned `npx playwright test`).
 - **Done when:** fresh clone → `cp .env.example orchestrator/.env` + key → `docker compose up`
       → full run, nothing else needed. That is the judge's experience.
 
+## Day 3 — DONE (2026-07-12): two container blockers found + fixed
+
+1. **openai SDK dead in the container**: every DashScope call failed with "Premature close" —
+   the SDK's bundled node-fetch transport breaks on Node 24 (the runtime in
+   `mcr.microsoft.com/playwright:v1.61.1-noble`); raw curl and native fetch worked fine.
+   → `qwen.ts` now passes `fetch: globalThis.fetch` (undici) to the client. Verified on host
+   (smoke 2/2) and in-container.
+2. **OpenAPI spec unreachable in compose**: server.ts resolves `../../demo-app/openapi.yaml`,
+   which doesn't exist in the orchestrator image — api-tester would run spec-less and
+   bug_file's undocumented-endpoint guard silently off.
+   → read-only bind mount `./demo-app/openapi.yaml:/demo-app/openapi.yaml:ro` in compose.
+
+Non-issues, verified: Playwright base image matches the lock (1.61.1); chromium launches
+headless as root; SQLite WAL works on the Windows bind mount; dashboard/demo-app reachable
+from host; orchestrator reaches `demo-app:3000`; qa/ artifacts land on the host.
+
+**Proof — Day-3 criterion MET**: `docker compose up --build` → full society run inside
+compose, driven from the host (Start run + Proceed via the dashboard endpoints): all phases,
+15 cases, 6 bugs (both hawk priority oracles + api-tester's 200-with-error-body), sign-off
+verdict written, 590k tokens / 497s. Artifacts (metrics.json, sign-off, screenshots, specs)
+visible in host `qa/`.
+
+Notes for Day 4+ (not Docker problems): script-writer overshot budget by one iteration
+(159.6k — guard stops late); it filed its own "page is not defined" spec error twice as a
+Critical product bug; api-tester ended BLOCKED on malformed http_request args, so no dispute
+was raised this run. All prompt/loop tuning, tracked under the Day-2 quality bar.
+
 ## Day 4 — ECS deployment + proof (submission requirement)
 
 - [ ] ECS per `deploy/ecs-setup.md`: 2 vCPU / 4 GB, Ubuntu 24, security group 22/8787(/3000).

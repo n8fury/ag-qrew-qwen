@@ -25,5 +25,9 @@ services:
     volumes:
       # shared artifact volume — bus, SQLite DB, reports, generated Playwright specs
       - ./qa:/app/qa
+      # server.ts/cli.ts resolve the OpenAPI spec at ../../demo-app/openapi.yaml
+      # (→ /demo-app/openapi.yaml in-container); without it the api-tester has no
+      # spec and bug_file's undocumented-endpoint guard is silently disabled
+      - ./demo-app/openapi.yaml:/demo-app/openapi.yaml:ro
     depends_on:
       - demo-app

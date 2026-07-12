@@ -13,7 +13,10 @@ import { mockChat } from './mock/mockQwen.js';
  *   - a per-call TOTAL token count (prompt + completion — i.e. what the API bills,
  *     including the re-sent conversation) so AgentLoop can enforce a per-agent budget
  */
-const client = new OpenAI({ apiKey: config.qwen.apiKey, baseURL: config.qwen.baseURL });
+// `fetch: globalThis.fetch` forces Node's native fetch (undici). The SDK's bundled
+// node-fetch transport deterministically dies with "Premature close" against
+// DashScope on Node 24 (the runtime inside the Playwright container image).
+const client = new OpenAI({ apiKey: config.qwen.apiKey, baseURL: config.qwen.baseURL, fetch: globalThis.fetch as any });
 
 export interface ChatArgs {
   model: QwenModel;
