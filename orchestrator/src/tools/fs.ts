@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, unlinkSync } from 'node:fs';
 import { resolve, sep, dirname, join } from 'node:path';
 import type { ToolDef } from '../agentLoop.js';
 
@@ -39,6 +39,27 @@ export function fsWriteTool(qaRoot: string): ToolDef {
     },
     run: (args: { path: string; content: string }) => {
       const target = resolveSandboxed(qaRoot, args.path);
+      // Models sometimes try to "create a folder" with an empty extension-less
+      // write (run #7: fs_write "automation" → empty FILE → every later write
+      // under automation/ failed and the agent misdiagnosed it as a missing
+      // browser). Directories are implicit — reject the attempt with guidance.
+      if (!args.content?.trim() && !/\.[A-Za-z0-9]+$/.test(args.path)) {
+        return `ERROR: fs_write creates FILES; directories are created automatically when you write a file inside them. ` +
+          `Do not pre-create folders — write the actual file, e.g. "${args.path.replace(/[\\/]+$/, '')}/runner.ts".`;
+      }
+      if (existsSync(target) && statSync(target).isDirectory()) {
+        return `ERROR: qa/${args.path} is a directory — pass a FILE path inside it instead.`;
+      }
+      // Self-heal a parent component that exists as an EMPTY file (a previous
+      // failed "mkdir" attempt); a non-empty file blocking the path is an error.
+      const root = resolve(qaRoot);
+      for (let dir = dirname(target); dir.length > root.length; dir = dirname(dir)) {
+        if (existsSync(dir) && statSync(dir).isFile()) {
+          if (statSync(dir).size === 0) { unlinkSync(dir); continue; }
+          return `ERROR: cannot write qa/${args.path} — a FILE already exists at "${dir.slice(root.length + 1)}". ` +
+            `You previously wrote a file where a directory is needed; choose a different path.`;
+        }
+      }
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, args.content);
       return `Wrote ${args.content.length} chars to qa/${args.path}.`;

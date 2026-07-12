@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { resolve, sep, join, dirname } from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, existsSync } from 'node:fs';
 import { chromium } from 'playwright';
 import type { ToolDef } from '../agentLoop.js';
 import { chat } from '../qwen.js';
@@ -79,6 +79,11 @@ export function playwrightRunTool(qaRoot: string): ToolDef {
     },
     run: async (args: { specPath: string }) => {
       const target = assertInsideQa(qaRoot, args.specPath);
+      // A missing spec must say so plainly — in run #7 the raw tsx path error
+      // was misread by the agent as "chromium not installed".
+      if (!existsSync(target)) {
+        return `ERROR: spec file qa/${args.specPath} does not exist — fs_write it first (check the exact path; nothing was executed).`;
+      }
       const runSpec = () => exec('npx', ['tsx', target], { timeout: RUN_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 });
       const pass = (stdout: string, stderr: string, note = '') =>
         `PASS (exit 0${note})\n${(stdout + (stderr ? `\n${stderr}` : '')).slice(0, MAX_OUTPUT_CHARS) || '(no output)'}`;

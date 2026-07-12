@@ -3,7 +3,6 @@
 > Scope: everything needed for a top-tier Track-3 submission INCLUDING Alibaba Cloud ECS
 > deployment + proof, a re-recorded hero video, and the metrics story. Days 8–11 are buffer,
 > not plan. Budget: the $40 coupon (~$1–2 per society run; whole plan ≈ $15–20).
-> This file is intentionally NOT committed.
 
 ## Day 1 — Context management in AgentLoop (the one real engineering upgrade)
 
@@ -44,10 +43,21 @@ The Day-1 over-budget numbers had four stacked root causes, all fixed:
    → Stale assistant arguments >400 chars collapse to a JSON stub after the same
    keep-last/compact-after rules as results.
 
-**Proof**: `src/probeTcWriter.ts` (single-agent live probe, ~5% the cost of a society run):
-qa-tc-writer went from never-finishing (317k tok / 40 iters / 0 cases) to
-**done in 8 iterations / 71,695 tokens / 13 cases stored** — under half the 150k budget.
-Mock: all 8 invariants green. Full society verification run: see Day 2 notes.
+Wave 2 (found by run #6's trace): keep-last-1/compact-after-1 was self-defeating — it deleted
+the test plan while the agent was still working from it, and the summary text said "re-run the
+tool if you need the full output" (tc-writer re-read the plan 19× in a row). Now keep-last-3 /
+compact-after-2, summary forbids re-runs, and the loop guard withholds results after 5 identical
+(call, result) pairs. Also: qa-api-tester treated 404s from guessed /health paths as "server
+unreachable" — Step 0 now requires a spec endpoint and counts ANY HTTP status as reachable.
+
+**Proof — Day-1 criterion MET (run #7, 2026-07-12)**: full society run, every agent `done`,
+no worker over 150k: tc-writer 108.8k/13 iters (16 cases stored — first time ever),
+script-writer 62.9k/7, hawk explore 131.5k/12, api-tester 119.2k/17. Total 556k, 471s,
+5 bugs incl. both priority oracles. Single-agent probe: `src/probeTcWriter.ts`
+(71.7k / 8 iters / 13 cases). Mock: all 8 invariants green.
+Known env gap for Day 2: qa-script-writer reported "chromium not installed" from
+playwright_run — run `npx playwright install chromium` (browser_snapshot's chromium works,
+so it's likely a version/path mismatch in the spawned `npx playwright test`).
 
 ---
 
