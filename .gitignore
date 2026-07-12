@@ -5,11 +5,18 @@
 **/qa/**
 !**/qa/.gitkeep
 
+# Run archives + logs (local debugging state, e.g. orchestrator/qa-attempt4-*/)
+orchestrator/qa-*/
+orchestrator/run*.log
+
+# SQLite databases + WAL sidecars (runtime state; -shm/-wal churn on every open)
+*.db
+*.db-shm
+*.db-wal
+
 # Dependencies
 node_modules/
 
 # OS
 .DS_Store
 Thumbs.db
-orchestrator/qa-*/
-orchestrator/run*.log

@@ -1,9 +1,0 @@
-API RESULTS — Demo Task Manager / 1
-========================================
-
-RESOURCE: tasks
-  GET /api/tasks — happy path        → HTTP 200, schema OK           → PASS
-  GET /api/tasks — no token          → HTTP 401 (expected 401)       → PASS
-  GET /api/tasks — malformed token   → HTTP 200 (expected 401)       → FAIL → bug #3
-  POST /api/tasks — happy path        → HTTP 201, schema OK           → PASS
-  POST /api/tasks — missing title     → HTTP 200 with error body      → FAIL → bug #2

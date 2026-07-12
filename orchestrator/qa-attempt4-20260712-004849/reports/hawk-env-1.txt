@@ -1,8 +1,0 @@
-APP HEALTH: PASS — root renders a functional login UI with no crash or error screen.
-MODULE REACHABILITY (/): PASS — login UI renders and is interactive.
-MODULE REACHABILITY (/tasks): PASS — tasks UI renders with task list and add form.
-AUTH (admin): PASS — POST /api/auth/login returns 200 + token + role=admin.
-AUTH (standard user): PASS — POST /api/auth/login returns 200 + token + role=standard.
-DEPENDENCIES: N/A — no external dependencies named in task.
-SEED DATA: PASS — /tasks shows 7 seeded tasks with correct status and ownership.
-OVERALL: READY
