@@ -210,6 +210,12 @@ All model calls go through the DashScope (Model Studio) OpenAI-compatible endpoi
 (`DASHSCOPE_API_KEY`, `QWEN_BASE_URL`, `QWEN_MODEL_LEAD/WORKER/VISION`). Use the **International
 Model Studio** console (Singapore) so the key matches the `dashscope-intl` endpoint.
 
+**Live ECS deployment (submission proof):** the full society runs on an Alibaba Cloud ECS
+instance (2 vCPU / 4 GiB, Ubuntu 24.04, Docker Compose) — setup guide:
+[deploy/ecs-setup.md](deploy/ecs-setup.md). Deployment-proof recording (console + SSH +
+live dashboard on the public IP): _link pending_. <!-- TODO(day-4): paste proof recording URL -->
+
+
 **Quota debugging:** `npx tsx src/probeModels.ts` (from `orchestrator/`) sends one tiny request
 to each candidate Qwen model and prints `OK` or the HTTP error per model — the fastest way to
 see which free-tier buckets your key can actually use. Reading the output: **429** means the

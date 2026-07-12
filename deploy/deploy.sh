@@ -13,9 +13,22 @@ if grep -q "YOUR_DASHSCOPE_API_KEY" orchestrator/.env; then
   exit 1
 fi
 
+# The Playwright image build needs ~2 GiB headroom; a 4 GiB ECS instance without swap
+# can OOM mid-build. Warn before it happens (see deploy/ecs-setup.md troubleshooting).
+if [ -r /proc/meminfo ]; then
+  mem_kb=$(awk '/^MemTotal/{print $2}' /proc/meminfo)
+  swap_kb=$(awk '/^SwapTotal/{print $2}' /proc/meminfo)
+  if [ "$((mem_kb + swap_kb))" -lt 6000000 ]; then
+    echo "WARN: <6 GiB RAM+swap — the image build may OOM. Add swap first:"
+    echo "  fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile"
+  fi
+fi
+
 docker compose up --build -d
 docker compose ps
 
 echo
 echo "✔ demo-app     → http://localhost:3000"
 echo "✔ dashboard    → http://localhost:8787   (open it, click Start run, then Proceed)"
+echo "  (on a cloud instance, replace localhost with the public IP — inbound 8787 must be"
+echo "   authorized to your browser's IP in the security group)"

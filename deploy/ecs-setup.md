@@ -13,11 +13,17 @@ Written for someone with zero Alibaba Cloud context. Total time: ~30 minutes.
 6. Disk: default 40 GiB system disk is fine (the Playwright image is ~2 GiB).
 7. Network: assign a **public IPv4** (pay-by-traffic, 5 Mbps is enough).
 8. Security group — open these inbound ports:
-   | Port | Purpose |
-   |---|---|
-   | 22 | SSH |
-   | 8787 | orchestrator dashboard |
-   | 3000 | demo-app (optional — only if you want it directly reachable) |
+   | Port | Purpose | Authorize to |
+   |---|---|---|
+   | 22 | SSH | your IP (`x.x.x.x/32`) |
+   | 8787 | orchestrator dashboard | your IP (`x.x.x.x/32`) |
+   | 3000 | demo-app (optional — only if you want it directly reachable) | your IP |
+
+   **Why not 0.0.0.0/0 for 8787:** the dashboard has no authentication — anyone who finds
+   the port can click *Start run* and spend your Model Studio tokens, and the instance has
+   to stay up until the deadline. Restricting to your own IP still satisfies the proof
+   recording (it's your browser). If your home IP rotates, widen to your ISP's range or
+   update the rule when it changes — it's a 10-second console edit.
 9. Set a root password (or key pair) → **Create**. Note the public IP.
 
 ## 2. Prepare the instance
@@ -34,7 +40,10 @@ systemctl enable --now docker
 ## 3. Deploy
 
 ```bash
-git clone https://github.com/<your-org>/ag-qrew-qwen.git
+# NOTE: the instance can only clone this if the repo is public (it must be public for
+# submission anyway). Until then, clone with a fine-grained PAT (repo → Contents: read):
+#   git clone https://<PAT>@github.com/n8fury/ag-qrew-qwen.git
+git clone https://github.com/n8fury/ag-qrew-qwen.git
 cd ag-qrew-qwen
 
 # secrets — paste your DASHSCOPE_API_KEY (International/Singapore Model Studio key)
@@ -66,12 +75,22 @@ One short screen recording showing, in sequence:
 Keep it separate from the demo video. Link both in the README next to
 [`orchestrator/src/qwen.ts`](../orchestrator/src/qwen.ts) (the Alibaba Cloud API usage file).
 
+## 6. Keep it alive until the deadline
+
+- The instance is pay-as-you-go (~cents/day) — do NOT release it after the recording; the
+  live URL is part of the submission.
+- **Snapshot the system disk as insurance** (Console → the instance → *Disks* → *Create
+  Snapshot*) right after the successful run, so a broken instance can be restored in minutes.
+- State hygiene before any recorded run (same as local):
+  `docker compose restart demo-app && rm -rf qa/* && docker compose restart orchestrator`.
+
 ## Troubleshooting
 
 - **`docker compose up` OOMs** — the Playwright image build needs ~2 GiB free; add swap:
   `fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile`.
 - **Dashboard unreachable** — 9 times out of 10 it's the security group, not the app.
-  Check inbound 8787 is open to 0.0.0.0/0.
+  Check inbound 8787 is authorized to the IP you're browsing from (your public IP may
+  differ from what you expect — check https://ifconfig.me).
 - **401 from Qwen** — your key is from the mainland (Bailian) console; create one in the
   **International** Model Studio console instead (the endpoint in `.env.example` is
   `dashscope-intl`).
