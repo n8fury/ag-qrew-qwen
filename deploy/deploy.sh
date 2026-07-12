@@ -14,7 +14,7 @@ if grep -q "YOUR_DASHSCOPE_API_KEY" orchestrator/.env; then
 fi
 
 # The Playwright image build needs ~2 GiB headroom; a 4 GiB ECS instance without swap
-# can OOM mid-build. Warn before it happens (see deploy/ecs-setup.md troubleshooting).
+# can OOM mid-build. Warn before it happens (see docs/ecs-setup.md troubleshooting).
 if [ -r /proc/meminfo ]; then
   mem_kb=$(awk '/^MemTotal/{print $2}' /proc/meminfo)
   swap_kb=$(awk '/^SwapTotal/{print $2}' /proc/meminfo)

@@ -74,7 +74,7 @@ flowchart TB
 | Adjudication | `orchestrator/src/adjudicate.ts` | Dispute → one rebuttal round by the original filer → QA Lead rules: UPHELD / DOWNGRADED / REJECTED / RECLASSIFIED |
 | Baseline | `orchestrator/src/baseline/singleAgent.ts` | The same job as ONE monolithic loop with all tools — the Track-3 comparison |
 | Server + dashboard | `orchestrator/src/server.ts` | Express + SSE: live signal feed, bug/dispute list, Start + Proceed buttons |
-| Demo app | `demo-app/` | Express task manager with **4 planted bugs** (`PLANTED_BUGS.md`) so the pipeline's recall is verifiable |
+| Demo app | `demo-app/` | Express task manager with **4 planted bugs** (`docs/PLANTED_BUGS.md`) so the pipeline's recall is verifiable |
 
 ## Model routing
 

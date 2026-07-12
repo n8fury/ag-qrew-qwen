@@ -94,7 +94,7 @@ docker compose up --build
 
 Then open **http://localhost:8787** → *Start run* → approve the plan at the **Proceed**
 checkpoint and watch the society work (demo-app under test at :3000). Cloud deployment:
-[deploy/ecs-setup.md](deploy/ecs-setup.md).
+[docs/ecs-setup.md](docs/ecs-setup.md).
 
 ### Option B — offline proof (no API key)
 
@@ -160,7 +160,7 @@ with. Conflict resolution is a property of the society, not of any model.
 
 [`demo-app/`](demo-app/) is a deliberately buggy Express task-manager (login + task CRUD + REST
 API + `openapi.yaml`) with **exactly 4 planted bugs**, documented in
-[`demo-app/PLANTED_BUGS.md`](demo-app/PLANTED_BUGS.md), each designed for a different agent to catch:
+[`docs/PLANTED_BUGS.md`](docs/PLANTED_BUGS.md), each designed for a different agent to catch:
 
 1. **UI** — tasks header renders `Tasks (undefined)` (qa-hawk, qwen-vl)
 2. **Boundary** — a >200-char title is accepted (qa-api-tester)
@@ -175,9 +175,11 @@ A pipeline that provably finds 4/4 known bugs is a stronger demo than one pointe
 
 ```
 ag-qrew-qwen/
-├── README.md · HANDOFF.md · LICENSE · .env.example · docker-compose.yml
-├── docs/                   # architecture.md (+ diagram PNG) · signals.md · scope-decisions.md
-├── deploy/                 # ecs-setup.md (click-by-click Alibaba Cloud) · deploy.sh
+├── README.md · LICENSE · .env.example · docker-compose.yml
+├── docs/                   # ALL project docs: architecture.md (+ diagram PNG) · signals.md ·
+│                           #   scope-decisions.md · ecs-setup.md (click-by-click Alibaba Cloud) ·
+│                           #   PLANTED_BUGS.md · HANDOFF.md · UPGRADE_PLAN.md · EXECUTION_PLAN.md
+├── deploy/                 # deploy.sh (one-shot compose deploy)
 ├── orchestrator/           # + Dockerfile
 │   ├── prompts/            # 5 agent system prompts (ported & adapted to the Qwen tools)
 │   └── src/
@@ -189,7 +191,7 @@ ag-qrew-qwen/
 │       ├── baseline/       # singleAgent.ts (Track-3 baseline)
 │       ├── mock/           # offline proof harness (mockQwen.ts + runMock.ts)
 │       ├── cli.ts · server.ts · smoke.ts
-├── demo-app/               # buggy target app + openapi.yaml + PLANTED_BUGS.md + Dockerfile
+├── demo-app/               # buggy target app + openapi.yaml + Dockerfile (bugs: docs/PLANTED_BUGS.md)
 └── qa/                     # runtime artifacts (gitignored) — bus, DB, specs, screenshots, reports
 ```
 
@@ -212,7 +214,7 @@ Model Studio** console (Singapore) so the key matches the `dashscope-intl` endpo
 
 **Live ECS deployment (submission proof):** the full society runs on an Alibaba Cloud ECS
 instance (2 vCPU / 4 GiB, Ubuntu 24.04, Docker Compose) — setup guide:
-[deploy/ecs-setup.md](deploy/ecs-setup.md). Deployment-proof recording (console + SSH +
+[docs/ecs-setup.md](docs/ecs-setup.md). Deployment-proof recording (console + SSH +
 live dashboard on the public IP): _link pending_. <!-- TODO(day-4): paste proof recording URL -->
 
 
@@ -244,7 +246,7 @@ one command and no external accounts (they remain documentable as pluggable adap
 - ✅ Docker Compose, architecture diagram (PNG), deploy scripts.
 - ⏳ Alibaba Cloud ECS deployment + proof recording.
 
-See [HANDOFF.md](HANDOFF.md) for the exact state and remaining tasks.
+See [docs/HANDOFF.md](docs/HANDOFF.md) for the exact state and remaining tasks.
 
 ## License
 

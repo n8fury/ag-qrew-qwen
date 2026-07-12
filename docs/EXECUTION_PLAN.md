@@ -1,7 +1,7 @@
 # EXECUTION PLAN — AG-QREW on Qwen
 
 > Work top to bottom. Each task lists the files to create and a **Done when** check.
-> Full spec: `AG-QREW-QWEN-PLAN_0610.pdf`. Live state: `HANDOFF.md`.
+> Full spec: `docs/AG-QREW-QWEN-PLAN.pdf`. Live state: `docs/HANDOFF.md`.
 > Today is Day 2 (July 6). Fable ends July 7 — all code generation must land by then.
 
 ---
@@ -107,7 +107,7 @@ Copy from `commands/`, strip Claude Code tool refs, keep SFDIPOT / FEW HICCUPPS.
 
 ## DEPLOY + SUBMIT (Days 4–5, Opus/Sonnet)
 - [ ] `docker-compose.yml` (orchestrator + demo-app + shared `qa/` volume); test Docker locally Day 3.
-- [ ] `deploy/ecs-setup.md` + `deploy.sh`; run full pipeline on Alibaba Cloud ECS; record deployment proof.
+- [ ] `docs/ecs-setup.md` + `deploy.sh`; run full pipeline on Alibaba Cloud ECS; record deployment proof.
 - [ ] Docs: `docs/architecture.md` + Mermaid→PNG, `signals.md`, `scope-decisions.md`, README rewrite.
 - [ ] 3-min demo video (script + shot list); make repo public; MIT LICENSE via GitHub UI; submit on Devpost (Track 3).
 

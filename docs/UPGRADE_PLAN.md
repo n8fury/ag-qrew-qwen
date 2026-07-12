@@ -115,7 +115,7 @@ was raised this run. All prompt/loop tuning, tracked under the Day-2 quality bar
 
 ## Day 4 — ECS deployment + proof (submission requirement)
 
-- [ ] ECS per `deploy/ecs-setup.md`: 2 vCPU / 4 GB, Ubuntu 24, security group 22/8787(/3000).
+- [ ] ECS per `docs/ecs-setup.md`: 2 vCPU / 4 GB, Ubuntu 24, security group 22/8787(/3000).
 - [ ] `git clone` + `.env` + `./deploy/deploy.sh`; full society run in the cloud, dashboard
       reachable at `http://<ip>:8787` from your local browser.
 - [ ] **Record the deployment proof** (separate from the demo video): Alibaba Cloud console

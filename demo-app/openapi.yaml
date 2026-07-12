@@ -5,7 +5,7 @@ info:
   description: >
     REST API for the demo task manager. This spec documents the CORRECT,
     intended behaviour. The running app deliberately deviates in 4 places
-    (see PLANTED_BUGS.md) — those deviations are what the QA agents detect.
+    (see docs/PLANTED_BUGS.md) — those deviations are what the QA agents detect.
 servers:
   - url: http://localhost:3000
 tags:

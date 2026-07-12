@@ -1,5 +1,5 @@
 // ag-qrew demo task-manager — intentionally buggy target-under-test.
-// See PLANTED_BUGS.md for the 4 planted defects (marked BUG #n below).
+// See docs/PLANTED_BUGS.md for the 4 planted defects (marked BUG #n below).
 const express = require('express');
 
 const app = express();

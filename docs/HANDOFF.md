@@ -1,7 +1,7 @@
 # HANDOFF — AG-QREW on Qwen
 
 > The contract for any later session. Bootstrap with two reads: this file +
-> `AG-QREW-QWEN-PLAN (1).pdf`. Keep it updated.
+> `docs/AG-QREW-QWEN-PLAN.pdf`. Keep it updated.
 > **Deadline: July 10, 3:00 AM GMT+6 — submit on Devpost by ~6 PM July 9.**
 
 ## Current state (2026-07-09, Day 5 — submission day)
@@ -51,7 +51,7 @@ Error semantics: **429** = per-minute rate window (the client now waits 20–60s
 ## Added today
 
 - `LICENSE` (MIT) · `docker-compose.yml` + `orchestrator/Dockerfile` (playwright v1.61.1 base,
-  must match package-lock) + `demo-app/Dockerfile` · `deploy/ecs-setup.md` + `deploy.sh`
+  must match package-lock) + `demo-app/Dockerfile` · `docs/ecs-setup.md` + `deploy.sh`
 - `docs/`: `architecture.md` + **`architecture.png`** (submission requirement) + `.mmd` source,
   `signals.md`, `scope-decisions.md`, `video-script.md`, `devpost-draft.md`
 - `orchestrator/src/probeModels.ts` — model callability probe
@@ -73,7 +73,7 @@ Error semantics: **429** = per-minute rate window (the client now waits 20–60s
    `npm run run:society` → expect 4/4 planted bugs + ≥1 adjudicated dispute (bug #4 forces it).
 2. `npm run run:single` (baseline) → both rows land in `qa/metrics.json` → README table.
 3. Commit everything; push to GitHub (private → public at submission).
-4. Docker: local `docker compose up` test → ECS (2vCPU/4GB Ubuntu 24) per `deploy/ecs-setup.md`
+4. Docker: local `docker compose up` test → ECS (2vCPU/4GB Ubuntu 24) per `docs/ecs-setup.md`
    → proof recording. Hard cutoff: if ECS fights back past mid-afternoon, record local Docker.
 5. Video per `docs/video-script.md` (set `PLAYWRIGHT_HEADED=1` for the browser shot).
 6. Devpost per `docs/devpost-draft.md` — submit by ~6 PM, polish after.
