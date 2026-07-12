@@ -127,13 +127,38 @@ was raised this run. All prompt/loop tuning, tracked under the Day-2 quality bar
 
 ## Day 5 — Dashboard + docs polish
 
-- [ ] React dashboard (`dashboard/`, Vite): test-case browser, bug list with dispute/adjudication
+- [x] React dashboard (`dashboard/`, Vite): test-case browser, bug list with dispute/adjudication
       badges, live signal feed, sign-off view. `server.ts` already serves `dashboard/dist` when
       present — zero server changes. Timebox to ONE day; the inline dashboard remains the fallback.
-- [ ] README pass with fresh screenshots (dashboard, sign-off, metrics), quickstart re-verified
+- [x] README pass with fresh screenshots (dashboard, sign-off, metrics), quickstart re-verified
       on a clean clone, scope-decisions cross-linked.
-- [ ] HANDOFF.md updated to post-upgrade reality.
+- [x] HANDOFF.md updated to post-upgrade reality.
 - **Done when:** a stranger can understand and run the project from the README alone.
+
+## Day 5 — DONE (2026-07-12)
+
+React 19 + Vite 8 dashboard in `dashboard/` (no UI libs, ~9 kB CSS): SSE-driven live signal
+feed with type filter, stat tiles, filterable/expandable test-case browser with per-case
+result badges, bug cards quoting the oracle with dispute/adjudication badges + full
+adjudication cards (claim vs counter-evidence vs qa-lead rationale), sign-off view (metrics
+table + verdict banner + report text). **`dashboard/dist` is committed** so judges get it
+with zero build steps; three tiny server additions (not zero, all judge-facing): `GET
+/api/report` (sign-off + metrics), `/api/state` falls back to the last bus session on file
+so a restarted server still shows the finished run, and the dist check now requires
+`index.html` so an empty Docker mount falls back to the inline page. Compose bind-mounts
+`./dashboard/dist` read-only.
+
+Found + fixed while verifying: **`demo:mock` clobbered real run artifacts** — `runSociety`
+derived qaRoot from config, ignoring the mock's temp workspace, so the mock overwrote
+`qa/sign-off-report.txt` + `qa/metrics.json` (it cost this session the Day-2 test run's
+sign-off text; metrics were reconstructed from `day2-test.log`). `runSociety` now takes an
+explicit `qaRoot` option and the mock passes its temp dir.
+
+Verified: orchestrator + dashboard typecheck clean; mock 8/8 green (and leaves `qa/`
+untouched); dashboard screenshotted against two real runs (Day-2 disputes run + Day-3
+compose run) → `docs/screenshots/`; fresh-install test in a pristine copy (orchestrator
+`npm install` + mock pass, demo-app `npm install` + boots). README rewritten around the
+dashboard; HANDOFF.md rewritten to post-upgrade reality.
 
 ## Day 6 — Video + blog
 

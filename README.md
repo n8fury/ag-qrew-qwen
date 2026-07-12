@@ -72,6 +72,25 @@ flowchart TD
 | **qa-script-writer** | qwen-plus | Playwright-as-a-library specs, executed via `playwright_run` | playwright_run, bug_file, result_record, raise_dispute |
 | **qa-hawk** | qwen-plus (+ qwen-vl-max) | Smoke + SFDIPOT exploratory testing; screenshot analysis | browser_snapshot, http_request, bug_file, raise_dispute |
 
+### Dashboard
+
+A React dashboard (Vite, [`dashboard/`](dashboard/)) served by the orchestrator at
+**http://localhost:8787** — live signal feed over SSE, run controls (Start / the one **Proceed**
+approval), a filterable test-case browser, a bug list with **dispute & adjudication badges**, and
+the QA Lead's sign-off report with run metrics. The build (`dashboard/dist`) is committed, so it
+works from a fresh clone with zero extra steps; if the build is missing, `server.ts` falls back to
+an inline zero-dependency page. All data views read the same SQLite store + signal bus the agents
+write — screenshots below are from real Qwen runs.
+
+![Dashboard — live signal feed and test-case browser](docs/screenshots/dashboard.png)
+
+| Bugs & adjudicated disputes | Sign-off & metrics |
+|---|---|
+| ![Bug list with dispute badges and adjudications](docs/screenshots/bugs-disputes.png) | ![Sign-off report with metrics](docs/screenshots/sign-off.png) |
+
+To hack on it: `cd dashboard && npm install && npm run dev` (proxies `/api` to :8787), then
+`npm run build` to refresh `dist/`.
+
 ### Conflict resolution (the differentiator)
 
 When one agent's evidence contradicts another's filed bug — e.g. qa-hawk reports *"deleted task
@@ -180,6 +199,7 @@ ag-qrew-qwen/
 │                           #   scope-decisions.md · ecs-setup.md (click-by-click Alibaba Cloud) ·
 │                           #   PLANTED_BUGS.md · HANDOFF.md · UPGRADE_PLAN.md · EXECUTION_PLAN.md
 ├── deploy/                 # deploy.sh (one-shot compose deploy)
+├── dashboard/              # React dashboard (Vite) — dist/ committed, served by server.ts
 ├── orchestrator/           # + Dockerfile
 │   ├── prompts/            # 5 agent system prompts (ported & adapted to the Qwen tools)
 │   └── src/
@@ -198,10 +218,10 @@ ag-qrew-qwen/
 Deep dives: [docs/architecture.md](docs/architecture.md) ·
 [docs/signals.md](docs/signals.md) · [docs/scope-decisions.md](docs/scope-decisions.md)
 
-Two conscious deviations from a textbook layout: workers are built by a **factory** (`worker.ts`)
-from the prompt files rather than four near-identical classes; and the dashboard is an **inline
-page** served by `server.ts` (zero build step) — `server.ts` serves `dashboard/dist` instead if a
-full React build is added later.
+One conscious deviation from a textbook layout: workers are built by a **factory** (`worker.ts`)
+from the prompt files rather than four near-identical classes. The dashboard ships two ways:
+`server.ts` serves the React build from `dashboard/dist` when present (it is committed), and
+falls back to a zero-dependency inline page otherwise — either way, one server, one port.
 
 ---
 
@@ -240,10 +260,12 @@ one command and no external accounts (they remain documentable as pluggable adap
 
 ## Status
 
-- ✅ Runtime, 5 agents, tool layer, demo-app (4 bugs curl-verified), baseline, CLI, server + inline dashboard — **code-complete, typecheck clean**.
+- ✅ Runtime, 5 agents, tool layer, demo-app (4 bugs curl-verified), baseline, CLI, server — **code-complete, typecheck clean**.
 - ✅ Full society path **verified offline** via `npm run demo:mock` (no key needed).
-- ✅ **Live end-to-end runs on real Qwen** — env gate, plan, checkpoint, all 4 workers, sign-off; planted bugs found (metrics table above from real runs).
-- ✅ Docker Compose, architecture diagram (PNG), deploy scripts.
+- ✅ **Live end-to-end runs on real Qwen** — env gate, plan, checkpoint, all 4 workers, adjudicated disputes, sign-off; planted bugs found (metrics table above from real runs).
+- ✅ Context management in AgentLoop — full society runs with **no worker over 150k tokens**.
+- ✅ React dashboard (test-case browser, dispute/adjudication badges, live SSE feed, sign-off view) + inline fallback.
+- ✅ Docker Compose (full society run verified inside compose), architecture diagram (PNG), deploy scripts.
 - ⏳ Alibaba Cloud ECS deployment + proof recording.
 
 See [docs/HANDOFF.md](docs/HANDOFF.md) for the exact state and remaining tasks.

@@ -1,6 +1,7 @@
 import express, { type Request, type Response } from 'express';
 import { fileURLToPath } from 'node:url';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { config } from './config.js';
 import { Bus, type Signal } from './bus.js';
 import { DB } from './db.js';
@@ -32,11 +33,28 @@ bus.on('signal', broadcast);
 let running = false;
 let proceedResolver: (() => void) | null = null;
 
+/**
+ * Signals for the dashboard: the live session's, or — when the server was
+ * (re)started after a run (fresh session, zero signals) — the last session on
+ * file, so the feed still shows the completed run instead of an empty pane.
+ */
+function signalsForDashboard(): Signal[] {
+  const live = bus.readAll();
+  if (live.length > 0 || !existsSync(config.busPath)) return live;
+  const all = readFileSync(config.busPath, 'utf8')
+    .split('\n')
+    .map((l) => Bus.parse(l.trim()))
+    .filter((s): s is Signal => s !== null);
+  if (all.length === 0) return [];
+  const lastSession = all[all.length - 1].session;
+  return all.filter((s) => s.session === lastSession);
+}
+
 app.get('/api/state', (_req: Request, res: Response) => {
   res.json({
     running,
     awaitingProceed: proceedResolver !== null,
-    signals: bus.readAll(),
+    signals: signalsForDashboard(),
     cases: db.listCases(),
     bugs: db.listBugs(),
     disputes: db.listDisputes(),
@@ -50,6 +68,16 @@ app.get('/api/stream', (req: Request, res: Response) => {
   res.write(`data: ${JSON.stringify({ type: 'HELLO', payload: 'connected' })}\n\n`);
   sseClients.add(res);
   req.on('close', () => sseClients.delete(res));
+});
+
+// Sign-off report + metrics for the React dashboard's sign-off view. Both are
+// plain files the QA Lead writes into qa/ — read fresh on every request.
+app.get('/api/report', (_req: Request, res: Response) => {
+  const qaDir = dirname(config.busPath);
+  const readIf = (p: string): string | null => (existsSync(p) ? readFileSync(p, 'utf8') : null);
+  let metrics: unknown = null;
+  try { metrics = JSON.parse(readIf(join(qaDir, 'metrics.json')) ?? 'null'); } catch { /* mid-write */ }
+  res.json({ signOff: readIf(join(qaDir, 'sign-off-report.txt')), metrics });
 });
 
 app.post('/api/proceed', (_req: Request, res: Response) => {
@@ -89,9 +117,10 @@ app.post('/api/run', (req: Request, res: Response) => {
   res.json({ ok: true, started: true });
 });
 
-// Serve the full dashboard build if present (task 9), else the inline mini-dashboard.
+// Serve the full dashboard build if present, else the inline mini-dashboard.
+// Check index.html, not just the dir — an empty Docker bind mount must fall back.
 const dashboardDist = fileURLToPath(new URL('../../dashboard/dist', import.meta.url));
-if (existsSync(dashboardDist)) {
+if (existsSync(join(dashboardDist, 'index.html'))) {
   app.use(express.static(dashboardDist));
 } else {
   app.get('/', (_req: Request, res: Response) => res.type('html').send(MINI_DASHBOARD));

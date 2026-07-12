@@ -25,7 +25,9 @@ const ctx: RunContext = {
   docText: 'Sprint 1 — login + task CRUD; title required, max 200 chars; missing/over-length → 400.',
 };
 
-const res = await runSociety(ctx, { db, bus, autoApprove: true, enforceEnvGate: true });
+// qaRoot: keep ALL artifacts (sign-off report, metrics.json) in the temp
+// workspace — without it the mock clobbers a real run's files in ./qa.
+const res = await runSociety(ctx, { db, bus, qaRoot: dir, autoApprove: true, enforceEnvGate: true });
 
 const rebuttalSeen = bus.readAll().some((s) => s.type === 'PROGRESS' && s.payload.startsWith('rebuttal by'));
 const d0 = res.disputes[0];

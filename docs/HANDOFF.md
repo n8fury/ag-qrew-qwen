@@ -1,92 +1,74 @@
 # HANDOFF — AG-QREW on Qwen
 
 > The contract for any later session. Bootstrap with two reads: this file +
-> `docs/AG-QREW-QWEN-PLAN.pdf`. Keep it updated.
-> **Deadline: July 10, 3:00 AM GMT+6 — submit on Devpost by ~6 PM July 9.**
+> [`UPGRADE_PLAN.md`](UPGRADE_PLAN.md) (the day-by-day source of truth, with per-day
+> DONE proofs). Deadline extended — 7 plan days + 4 buffer days; see the plan header.
 
-## Current state (2026-07-09, Day 5 — submission day)
+## Current state (2026-07-12, end of Day 5)
 
-**All code exists and typechecks.** The pipeline has run end-to-end on real Qwen multiple
-times (11 runs today). Best run so far (run #3, qwen-plus workers): 22 cases, 3 bugs filed
-including planted bug #1, full sign-off. What has NOT yet happened: a run that finds 4/4
-planted bugs + an adjudicated dispute, the baseline metrics run, ECS deploy, video, submission.
+**Code-complete and typecheck-clean across orchestrator + dashboard.** The society runs
+end-to-end on real Qwen within budget, in Docker, with adjudicated disputes on the bus.
 
-### The one blocker: model quota
-
-The free tier gives **1M tokens per model version** (separate buckets). We burned ~5M tokens
-across 11 runs learning the runtime and the models. Verdicts (full map in
-`probeModels.ts` — run `npx tsx src/probeModels.ts`):
-
-| Worker model | Verdict |
+| Plan day | Status |
 |---|---|
-| `qwen-plus` (alias) | **GOOD — the proven config** (run #3). Bucket exhausted |
-| `qwen3-max-2025-09-23` | Best protocol quality; reasoning burns ~250k/worker. Exhausted |
-| `qwen-plus-latest`, `qwen-plus-2025-07-28` | Unreliable / mediocre. Mostly burned |
-| `qwen-flash-2025-07-28`, `qwen3-30b…` | Hopeless at the tool protocol. Burned |
-| `qwen-max-2025-01-25`, `qwen-vl-max-2025-08-13`, `qwen-turbo-latest` | 403 Access denied on this key |
-
-**Next step: enable pay-as-you-go** (payment info + disable "free tier only") → set
-`QWEN_MODEL_WORKER=qwen-plus` in `orchestrator/.env` → hero run costs <$1.
-Error semantics: **429** = per-minute rate window (the client now waits 20–60s and retries);
-**403 quota** = bucket dead (switch model); **403 access denied** = model not enabled for key.
-
-## Fixed today (all verified, some still UNCOMMITTED — see git note)
-
-1. `better-sqlite3` ^11→^12 (the v11 binary was macOS-only; v12 has Node-24 Windows prebuilds).
-2. fs/playwright tools accept `qa/`-prefixed paths (agents address artefacts as `qa/<p>`).
-3. Playwright tools shell through cmd on win32 (`npx` is `npx.cmd` — spawn failed silently).
-4. Route documentation in the run context (`siteMap`) — qa-hawk no longer false-BLOCKs on
-   guessed paths; cli/server use `DEMO_APP_URL` (Docker networking).
-5. Phase-0 env task no longer references the test plan (which doesn't exist until Phase 1).
-6. 429 retries wait out the per-minute window (20s→60s, 6 attempts, logged).
-7. Phase 2b runs **serially** (script-writer → hawk) — parallel workers on one bucket trip TPM.
-8. tc-writer task capped: ≤8 cases/module, one `tc_store` per module (was flailing to budget death).
-9. **demo-app login actually works now** — the form had NO submit handler (accidental 5th bug,
-   credentials leaked into the query string). Wired: POST /api/auth/login → token → /tasks,
-   visible error on bad creds. Probe: `orchestrator/qa/loginProbe.ts` (wiped with qa/; original
-   in the session scratchpad). The 4 planted bugs are untouched.
-10. Budgets: `AGENT_MAX_ITERATIONS=40`, `AGENT_MAX_TOKENS=250000` (120k cut workers off; 400k
-    let bad models burn a whole bucket).
-
-## Added today
-
-- `LICENSE` (MIT) · `docker-compose.yml` + `orchestrator/Dockerfile` (playwright v1.61.1 base,
-  must match package-lock) + `demo-app/Dockerfile` · `docs/ecs-setup.md` + `deploy.sh`
-- `docs/`: `architecture.md` + **`architecture.png`** (submission requirement) + `.mmd` source,
-  `signals.md`, `scope-decisions.md`, `video-script.md`, `devpost-draft.md`
-- `orchestrator/src/probeModels.ts` — model callability probe
-- README: Docker quickstart, repo structure, status. **Metrics table still pending** the
-  society + baseline runs.
-
-## Blockers needing the human (as of writing)
-
-1. **Pay-as-you-go billing** in Model Studio — unblocks the hero run + baseline.
-2. **GPG**: `git commit` fails with pinentry timeout in agent shells. Human must run a commit
-   in their own terminal to re-cache the passphrase (or approve committing unsigned).
-   Uncommitted: login fix, resilience fixes (6–8), README, docs, HANDOFF.
-3. **Docker Desktop** not installed on this Windows machine — blocks the local compose test.
-4. **No GitHub remote / no `gh` CLI** — repo is local-only (branch `main`, several commits).
+| **1 — Context management** | ✅ DONE with proof (run #7): full society run, every agent `done`, **no worker over 150k tokens**. Root causes + fixes documented in UPGRADE_PLAN. |
+| **2 — Precision + dispute** | 🟡 Mechanics landed (oracle quoting in `bug_file`, mandatory api-tester cross-check, loop guards) and a real run produced **3 adjudicated disputes** (Day-2 test, 619k tokens). The **hero run** — 4/4 planted bugs + ≥1 adjudicated dispute + executed spec results in ONE run — is still pending. |
+| **3 — Docker** | ✅ DONE with proof: full society run inside compose, driven from the host. Two container fixes: `qwen.ts` passes native `fetch` (openai SDK dead on Node 24), openapi.yaml bind mount. |
+| **4 — ECS + proof** | 🟡 Repo side ready (deploy assets, README proof slot at `TODO(day-4)`). The cloud steps are human-only: [`DAY4_CHECKLIST.md`](DAY4_CHECKLIST.md). |
+| **5 — Dashboard + docs** | ✅ DONE. React dashboard (`dashboard/`, Vite): live SSE signal feed, test-case browser with filters, bug list with dispute/adjudication badges, sign-off + metrics view. `dashboard/dist` is **committed**; server serves it, inline page remains the fallback. README refreshed with real-run screenshots (`docs/screenshots/`). |
+| **6 — Video + blog** | ⏳ Not started ([`video-script.md`](video-script.md) ready). |
+| **7 — Submit** | ⏳ Not started ([`devpost-draft.md`](devpost-draft.md) ready). |
 
 ## Remaining tasks, in order
 
-1. Enable billing → `QWEN_MODEL_WORKER=qwen-plus` → wipe `orchestrator/qa`, restart demo-app,
-   `npm run run:society` → expect 4/4 planted bugs + ≥1 adjudicated dispute (bug #4 forces it).
-2. `npm run run:single` (baseline) → both rows land in `qa/metrics.json` → README table.
-3. Commit everything; push to GitHub (private → public at submission).
-4. Docker: local `docker compose up` test → ECS (2vCPU/4GB Ubuntu 24) per `docs/ecs-setup.md`
-   → proof recording. Hard cutoff: if ECS fights back past mid-afternoon, record local Docker.
-5. Video per `docs/video-script.md` (set `PLAYWRIGHT_HEADED=1` for the browser shot).
-6. Devpost per `docs/devpost-draft.md` — submit by ~6 PM, polish after.
+1. **Hero run** (Day-2 bar): state hygiene → `npm run run:society` until one run hits
+   4/4 planted bugs + ≥1 adjudicated dispute + executed spec results. Iterate prompts,
+   not architecture. Save that run's `qa/` to `docs/sample-run/`; refresh the README
+   metrics table together with a fresh `npm run run:single` baseline.
+2. **ECS deploy + proof recording** — follow [`DAY4_CHECKLIST.md`](DAY4_CHECKLIST.md)
+   click by click; paste the recording URL into README (`TODO(day-4)` marker).
+3. **Video** per [`video-script.md`](video-script.md) (dispute visible on the bus,
+   `PLAYWRIGHT_HEADED=1` for the browser shot) → YouTube, verify logged-out playback.
+4. **Blog draft** (prize track): the model scorecard / 429-vs-403 / context-management story.
+5. **Devpost submission** per [`devpost-draft.md`](devpost-draft.md), then STOP.
+
+Priority if time slips: ECS proof > hero run > video > blog.
 
 ## How to run
 
 ```bash
-# app under test                      # QA society
-cd demo-app && npm start              cd orchestrator && npm run run:society
-                                      npm run run:single   # baseline
-                                      npm start             # dashboard :8787
-npm run demo:mock                     # offline proof, no key (8 invariants green)
+# judges' path — one command
+cp .env.example orchestrator/.env       # paste DASHSCOPE_API_KEY (International Model Studio)
+docker compose up --build               # → http://localhost:8787 → Start run → Proceed
+
+# bare-metal dev
+cd demo-app && npm install && npm start            # app under test :3000
+cd orchestrator && npm install
+npm run demo:mock                                  # offline proof, no key — 8 invariants green
+npm run run:society | npm run run:single           # CLI runs
+npm start                                          # server + dashboard :8787
+
+# dashboard dev (only if changing UI)
+cd dashboard && npm install && npm run dev         # Vite dev server, proxies /api → :8787
+npm run build                                      # refresh committed dist/
 ```
 
-State hygiene between demo runs: kill demo-app, restart it (in-memory data), and
-`rm -rf orchestrator/qa` (DB/bus/artifacts) so counts and bugs don't carry over.
+## Things a new session must know
+
+- **State hygiene before every recorded/metric run**: restart demo-app (in-memory data),
+  `rm -rf orchestrator/qa` so counts don't carry over.
+- **Models**: lead `qwen-max`, workers `qwen-plus`, vision `qwen-vl-max` (the proven trio).
+  **429** = per-minute window, client waits and retries. **403 quota** = bucket dead —
+  console problem, don't retry. `npx tsx src/probeModels.ts` maps callability per model.
+- **Budgets**: `AGENT_MAX_ITERATIONS=25`, `AGENT_MAX_TOKENS=150000` (.env; enforced by
+  AgentLoop with compaction keep-last-3 / compact-after-2 + identical-call loop guard).
+- **The mock sandbox**: `npm run demo:mock` writes ALL artifacts (DB, bus, metrics,
+  sign-off) to a temp dir via the `qaRoot` option — it must never touch `./qa`.
+- **Dashboard serving**: `server.ts` serves `dashboard/dist` only if `dist/index.html`
+  exists, else the inline page; compose bind-mounts `./dashboard/dist` read-only.
+  `/api/report` exposes `qa/sign-off-report.txt` + `qa/metrics.json`; `/api/state`
+  falls back to the last bus session on file so a restarted server still shows the run.
+- **Playwright in specs**: known env gap on this Windows host — `npx playwright install chromium`
+  if `playwright_run` reports "chromium not installed" (browser_snapshot works regardless).
+- **Commits**: the human commits (GPG-signed) — prepare the message, don't run `git commit`.
+- **Cost**: check Model Studio Expenses → Cost Analysis daily; coupon covers ~20× planned spend.

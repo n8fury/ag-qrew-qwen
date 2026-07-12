@@ -29,5 +29,9 @@ services:
       # (→ /demo-app/openapi.yaml in-container); without it the api-tester has no
       # spec and bug_file's undocumented-endpoint guard is silently disabled
       - ./demo-app/openapi.yaml:/demo-app/openapi.yaml:ro
+      # React dashboard build (committed to the repo) — server.ts serves it from
+      # ../../dashboard/dist → /dashboard/dist in-container; if the mount is empty
+      # the server falls back to the inline mini-dashboard
+      - ./dashboard/dist:/dashboard/dist:ro
     depends_on:
       - demo-app

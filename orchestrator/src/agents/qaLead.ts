@@ -35,6 +35,7 @@ export interface SocietyOptions {
   bus?: Bus;
   session?: string;
   externalSpecPath?: string;     // a real fs path to an OpenAPI spec; copied into qa/
+  qaRoot?: string;               // artifact dir; defaults to dirname(BUS_PATH) — the mock passes its temp dir
   autoApprove?: boolean;         // default true — skip the human proceed gate
   enforceEnvGate?: boolean;      // default true — a BLOCKED env halts the run
   onCheckpoint?: (planFile: string) => Promise<void>;
@@ -69,7 +70,7 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
   const autoApprove = opts.autoApprove ?? true;
   const enforceEnvGate = opts.enforceEnvGate ?? true;
 
-  const qaRoot = resolve(dirname(config.busPath));
+  const qaRoot = resolve(opts.qaRoot ?? dirname(config.busPath));
   if (!existsSync(qaRoot)) mkdirSync(qaRoot, { recursive: true });
 
   // Make the site URL visible to specs that playwright_run executes as child
