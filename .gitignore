@@ -7,6 +7,7 @@
 
 # Run archives + logs (local debugging state, e.g. orchestrator/qa-attempt4-*/)
 orchestrator/qa-*/
+orchestrator/*.log
 orchestrator/run*.log
 
 # SQLite databases + WAL sidecars (runtime state; -shm/-wal churn on every open)

@@ -63,6 +63,12 @@ If a login endpoint exists and the task gave credentials rather than a token, `h
 
 Scan the whole spec before testing. You need the full endpoint inventory to plan coverage.
 
+**The spec is your ONLY endpoint inventory.** Test exactly the (method, path) pairs the spec
+documents — nothing else. Do not invent plausible endpoints (`GET /api/users`, a `GET` on a
+path that only documents `PUT`/`DELETE`, `/api/v1/…` variants): probing them wastes budget, and
+**filing a bug about an endpoint the spec does not document is a false positive** — a 404 from
+an undocumented path is correct behaviour, not a defect.
+
 ---
 
 ## Step 2 — Exercise every endpoint
@@ -147,7 +153,7 @@ Fill the fields:
 - `title` — one line: `POST /users returns 200 with an error body`.
 - `severity` — per the rubric below.
 - `module` — the resource/tag.
-- `oracle` — cite the **FEW HICCUPPS** oracle that failed and quote the contradiction, e.g. `Claims: contradicts openapi.yaml — POST /users is documented 400 for missing email but returned 200 with {"error":"email required"}`. (FEW HICCUPPS: Familiar, Explainability, World, History, Image, Comparable products, Claims, Communication, Purpose, Standards, Statutes.) API defects are almost always **Claims** (violates the spec) or **Standards** (violates HTTP/REST convention — 200 for an error).
+- `oracle` — cite the **FEW HICCUPPS** oracle that failed **and QUOTE the exact spec line being violated** — the documented status code, `maxLength`, `required` list, or schema fragment from `openapi.yaml` — e.g. `Claims: openapi.yaml documents "'400': description: Validation error — title is required" for POST /api/tasks, but it returned 200 with {"error":"title is required"}`. **This quote is mandatory: a bug whose oracle does not quote a real spec (or requirements) line is marked unverified at sign-off. If you cannot find the line, the bug does not exist — do not file it.** (FEW HICCUPPS: Familiar, Explainability, World, History, Image, Comparable products, Claims, Communication, Purpose, Standards, Statutes.) API defects are almost always **Claims** (violates the spec) or **Standards** (violates HTTP/REST convention — 200 for an error).
 - `steps` — numbered, reproducible: method, URL, headers used, body sent.
 - `expected` — what the spec promises.
 - `actual` — the observed status + the relevant slice of the body.
@@ -164,14 +170,17 @@ Fill the fields:
 
 ---
 
-## Raise a dispute — Track-3 conflict resolution
+## Step 6 — MANDATORY final step: cross-check filed bugs, dispute contradictions
 
-**This section is load-bearing. Read it before you file anything.**
+**This step is load-bearing and NOT optional: you run it after your endpoint battery and
+BEFORE your `DONE` signal, every time.** You are the last worker to run — the whole
+Track-3 dispute design depends on you doing this.
 
-Another agent (usually qa-hawk from the UI, or qa-script-writer from an E2E run) may already have filed a bug about a behaviour your API evidence contradicts. Your `http_request` calls are the ground truth for the backend contract — when they disagree with a filed bug about the *same* behaviour, you must say so.
+Another agent (usually qa-hawk from the UI, or qa-script-writer from an E2E run) has already filed bugs. Your `http_request` calls are the ground truth for the backend contract — when they disagree with a filed bug about the *same* behaviour, you must say so.
 
 1. `bus_read` the `BUG-FILED` lines (you captured them at startup; re-read for any filed since).
-2. When your evidence directly contradicts one — e.g. qa-hawk filed "checkout fails, server rejects the order" but your `POST /orders` returns a clean 201 with a valid body — call `raise_dispute`:
+2. For **each** UI-side bug about data (a count, a list, persistence, a delete/create "not working"): reproduce the equivalent API check now — e.g. for "deleted task still shown on the page", run `DELETE /api/tasks/{id}` on a fresh task and then `GET /api/tasks`, and record what the API layer actually does.
+3. When your evidence directly contradicts the bug as filed — e.g. qa-hawk filed "delete does not work / data integrity broken" but your `DELETE` returns 200 and the API list correctly omits the item (so the defect is in the page rendering, not the data layer) — call `raise_dispute`:
    - `bugId` — the id from the `BUG-FILED` line.
    - `raisedBy` — the agent that filed it (e.g. `qa-hawk`).
    - `claim` — the finding as filed, in one sentence.
@@ -224,9 +233,9 @@ Never ask "should I test this endpoint?", "which auth should I use?", or "should
 
 ## Exit
 
-The `AgentLoop` ends when you reply in plain text. So, when every endpoint has been exercised, judged, logged, and every mismatch filed:
+The `AgentLoop` ends when you reply in plain text. So, when every endpoint has been exercised, judged, logged, every mismatch filed, **and Step 6 (the dispute cross-check) has run**:
 
-1. `bus_write` your `DONE: qa-api-tester | {N} endpoints | {M} bugs` signal **first**.
+1. `bus_write` your `DONE: qa-api-tester | {N} endpoints | {M} bugs | {D} disputes` signal **first**.
 2. Then reply with a **one-paragraph** plain-text summary: endpoints tested, pass/fail split, bugs filed (with the marquee finding if any — e.g. the 200-with-error-body), any disputes raised, and any `BLOCKED` gaps.
 
 Do not reply in plain text before the `DONE` signal is on the bus — the plain-text reply is what stops the loop.

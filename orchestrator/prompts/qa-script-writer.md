@@ -176,12 +176,18 @@ Rules for the case bodies (zero tolerance):
 
 **(c) All cases PASS** → go to Step 4.
 
+**Repair budget — hard cap.** You get **2 fix-and-re-run cycles per spec file**, total.
+If a case still fails after the second repair, STOP polishing: `result_record` it as it
+stands (FAIL with a note naming the suspect — your selector vs the product) and move on.
+An imperfect recorded result beats a perfect spec that never ships because the token
+budget died mid-polish. Never re-run a spec whose output you have already seen unchanged.
+
 **Bounded self-repair:** at most **5 repair attempts per module** (the AgentLoop iteration/token caps are the hard backstop). If a case still cannot be made to run after that, drop it from the runner list with a `// {tc} SKIPPED: {one-line reason}` comment and `bus_write` a `PROGRESS: qa-script-writer | {module} | {tc} skipped after 5 repair attempts | {reason}`. **Never** leave a spec that crashes on load, **never** fabricate a pass, and **never** file a product bug for a failure you caused.
 
 ### Step 4 — Record results and file real bugs
 For every case in this module:
 - `result_record` against its **row id** (from `tc_list`): `PASS`, `FAIL` (with a short `note`), or `BLOCKED`.
-- For each reproduced product defect, `bug_file` — `title`, `severity` (rubric below), `module`, `oracle` (the FEW HICCUPPS oracle that failed — usually **Claims** for wrong behaviour or **User Expectations** for a bad error), numbered `steps`, `expected`, `actual`, and `evidence` (the failing case's JSON line + note). `bug_file` auto-emits `BUG-FILED` — never also `bus_write` a `BUG-FILED` yourself.
+- For each reproduced product defect, `bug_file` — `title`, `severity` (rubric below), `module`, `oracle` (the FEW HICCUPPS oracle that failed — usually **Claims** for wrong behaviour or **User Expectations** for a bad error — **plus a verbatim quote of the requirement, spec, or stored-test-case line the behaviour violates**; a bug without a quoted line is marked unverified at sign-off), numbered `steps`, `expected`, `actual`, and `evidence` (the failing case's JSON line + note). `bug_file` auto-emits `BUG-FILED` — never also `bus_write` a `BUG-FILED` yourself.
 
 Before filing, `bus_read` `BUG-FILED` lines — if qa-hawk already filed the same defect, do not re-file. If your run **contradicts** a filed bug (it passes cleanly where qa-hawk reported a failure), `raise_dispute` with `bugId`, `raisedBy`, `claim`, and a concrete `counterClaim` (the passing case + its output). Only dispute the same behaviour with concrete evidence.
 

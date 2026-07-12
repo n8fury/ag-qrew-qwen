@@ -42,7 +42,7 @@ export function toolsFor(agent: AgentName, { db, bus, qaRoot }: ToolDeps): Recor
     case 'qa-api-tester':
       return named([
         ...busRW, ...files, httpRequestTool(),
-        tcListTool(db), bugFileTool(db, bus, agent), resultRecordTool(db), dispute,
+        tcListTool(db), bugFileTool(db, bus, agent, qaRoot), resultRecordTool(db), dispute,
       ]);
     case 'qa-script-writer':
       return named([

@@ -1,6 +1,61 @@
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import type { ToolDef } from '../agentLoop.js';
 import type { DB, TestCase, Bug, Result } from '../db.js';
 import type { Bus } from '../bus.js';
+
+// ── Spec guard for qa-api-tester bugs ────────────────────────────────────────
+// qwen-plus repeatedly fabricates endpoints ("GET /api/tasks/{id}", "GET
+// /api/users") and even fabricates spec quotes for them. Prompt discipline
+// alone cannot stop a hallucinated citation, so bug_file mechanically checks
+// every "METHOD /path" mention in an api-tester bug against qa/openapi.yaml
+// and refuses to file when the spec does not document that pair.
+
+/** Parse `paths:` from the (2-space indented) OpenAPI YAML: path → set of methods. */
+function parseSpecPaths(specText: string): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  const lines = specText.split('\n');
+  let inPaths = false;
+  let current: string | null = null;
+  for (const line of lines) {
+    if (/^paths:\s*$/.test(line)) { inPaths = true; continue; }
+    if (inPaths && /^[A-Za-z]/.test(line)) break; // next top-level key
+    if (!inPaths) continue;
+    const p = line.match(/^  (\/\S*?):\s*$/);
+    if (p) { current = p[1]; out.set(current, new Set()); continue; }
+    const m = line.match(/^    (get|post|put|patch|delete|head|options):\s*$/i);
+    if (m && current) out.get(current)!.add(m[1].toUpperCase());
+  }
+  return out;
+}
+
+/** Does `path` match a spec path, treating {param} segments as wildcards? */
+function pathMatches(specPath: string, path: string): boolean {
+  const a = specPath.split('/').filter(Boolean);
+  const b = path.split('/').filter(Boolean);
+  if (a.length !== b.length) return false;
+  return a.every((seg, i) => /^\{.+\}$/.test(seg) || seg === b[i]);
+}
+
+/** Returns an error string if the bug text cites an endpoint the spec does not document. */
+function undocumentedEndpointCited(bug: { title: string; oracle: string; steps: string }, qaRoot: string): string | null {
+  const specFile = join(qaRoot, 'openapi.yaml');
+  if (!existsSync(specFile)) return null; // no spec to check against
+  const spec = parseSpecPaths(readFileSync(specFile, 'utf8'));
+  if (!spec.size) return null;
+  const text = `${bug.title}\n${bug.oracle}\n${bug.steps}`;
+  for (const m of text.matchAll(/\b(GET|POST|PUT|PATCH|DELETE)\s+(?:https?:\/\/[^/\s]+)?(\/api\/[\w/{}.:-]*[\w}])/gi)) {
+    const method = m[1].toUpperCase();
+    const path = m[2].replace(/\/\d+(?=\/|$)/g, '/{id}'); // numeric ids → {id}
+    const documented = [...spec.entries()].some(([p, methods]) => pathMatches(p, path) && methods.has(method));
+    if (!documented) {
+      return `ERROR: bug NOT filed — your bug cites "${method} ${m[2]}", but qa/openapi.yaml does not document that ` +
+        `(method, path) pair. A 404 from an undocumented endpoint is CORRECT behaviour, not a defect. ` +
+        `Documented pairs: ${[...spec.entries()].map(([p, ms]) => [...ms].map((mm) => `${mm} ${p}`).join(', ')).join(', ')}.`;
+    }
+  }
+  return null;
+}
 
 /**
  * Store tools — the SQLite-backed replacements for TestRail/Jira.
@@ -87,7 +142,7 @@ export function tcListTool(db: DB): ToolDef {
   };
 }
 
-export function bugFileTool(db: DB, bus: Bus, selfName: string): ToolDef {
+export function bugFileTool(db: DB, bus: Bus, selfName: string, qaRoot?: string): ToolDef {
   return {
     schema: {
       type: 'function',
@@ -112,6 +167,11 @@ export function bugFileTool(db: DB, bus: Bus, selfName: string): ToolDef {
       },
     },
     run: (args: Omit<Bug, 'found_by'>) => {
+      // Mechanical false-positive guard: API-layer bugs must cite documented endpoints.
+      if (selfName === 'qa-api-tester' && qaRoot) {
+        const err = undocumentedEndpointCited(args, qaRoot);
+        if (err) return err;
+      }
       const id = db.fileBug({ ...args, found_by: selfName });
       bus.write('BUG-FILED', `#${id} [${args.severity}] ${args.title}`, selfName);
       return `Bug #${id} filed (${args.severity}). BUG-FILED emitted. Continue testing.`;

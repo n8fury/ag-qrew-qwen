@@ -213,7 +213,10 @@ function buildSummary(db: DB, bus: Bus): string {
   const t = tallyResults(db);
   const lines: string[] = [];
   lines.push(`Bugs (after adjudication): ${bugs.length} — Critical ${bySev('Critical')}, High ${bySev('High')}, Medium ${bySev('Medium')}, Low ${bySev('Low')}`);
-  for (const b of bugs) lines.push(`  #${b.id} [${b.severity}] (${b.module}) ${b.title} — found by ${b.found_by}`);
+  for (const b of bugs) {
+    lines.push(`  #${b.id} [${b.severity}] (${b.module}) ${b.title} — found by ${b.found_by}`);
+    lines.push(`      oracle: ${(b.oracle || '(none)').replace(/\s+/g, ' ').slice(0, 220)}`);
+  }
   lines.push(`Results: ${t.pass} pass, ${t.fail} fail, ${t.blocked} blocked, ${t.skip} skip (total cases stored: ${db.listCases().length})`);
   if (disputes.length) {
     lines.push(`Disputes:`);

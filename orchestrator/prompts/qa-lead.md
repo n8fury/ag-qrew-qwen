@@ -340,6 +340,14 @@ BUG SUMMARY
 Bug ID | Title | Severity (final) | Oracle | Found by | Dispute verdict | Status
 {one row per bug from the task-message summaries; severity is post-adjudication}
 
+ORACLE AUDIT (false-positive discipline)
+----------------------------------------
+{Check each bug's oracle in the task-message summary: it must QUOTE a requirement or
+spec line the behaviour violates. List any bug whose oracle carries no quoted line as
+"UNVERIFIED — no cited oracle" and EXCLUDE it from the decision-gate bug counts above,
+stating the exclusion explicitly. If every bug cites a line, write
+"All bugs carry cited oracles."}
+
 
 DISPUTE RECORD
 --------------
