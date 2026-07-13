@@ -4,7 +4,7 @@
 > [`UPGRADE_PLAN.md`](UPGRADE_PLAN.md) (the day-by-day source of truth, with per-day
 > DONE proofs). Deadline extended — 7 plan days + 4 buffer days; see the plan header.
 
-## Current state (2026-07-12, end of Day 5)
+## Current state (2026-07-13, Day 2 complete — only human-side steps left besides video/blog/submit)
 
 **Code-complete and typecheck-clean across orchestrator + dashboard.** The society runs
 end-to-end on real Qwen within budget, in Docker, with adjudicated disputes on the bus.
@@ -12,7 +12,7 @@ end-to-end on real Qwen within budget, in Docker, with adjudicated disputes on t
 | Plan day | Status |
 |---|---|
 | **1 — Context management** | ✅ DONE with proof (run #7): full society run, every agent `done`, **no worker over 150k tokens**. Root causes + fixes documented in UPGRADE_PLAN. |
-| **2 — Precision + dispute** | 🟡 Mechanics landed (oracle quoting in `bug_file`, mandatory api-tester cross-check, loop guards) and a real run produced **3 adjudicated disputes** (Day-2 test, 619k tokens). The **hero run** — 4/4 planted bugs + ≥1 adjudicated dispute + executed spec results in ONE run — is still pending. |
+| **2 — Precision + dispute** | ✅ DONE with proof (hero run, 2026-07-13): **4/4 planted bugs + 1 adjudicated cross-agent dispute (RECLASSIFIED — the designed hawk↔api-tester conflict) + 14 executed results** in one run. Full artifacts committed at [`sample-run/`](sample-run/); the 5-run iteration log (what each failure taught) is in UPGRADE_PLAN's Day-2 DONE section. |
 | **3 — Docker** | ✅ DONE with proof: full society run inside compose, driven from the host. Two container fixes: `qwen.ts` passes native `fetch` (openai SDK dead on Node 24), openapi.yaml bind mount. |
 | **4 — ECS + proof** | 🟡 Repo side ready (deploy assets, README proof slot at `TODO(day-4)`). The cloud steps are human-only: [`DAY4_CHECKLIST.md`](DAY4_CHECKLIST.md). |
 | **5 — Dashboard + docs** | ✅ DONE. React dashboard (`dashboard/`, Vite): live SSE signal feed, test-case browser with filters, bug list with dispute/adjudication badges, sign-off + metrics view. `dashboard/dist` is **committed**; server serves it, inline page remains the fallback. README refreshed with real-run screenshots (`docs/screenshots/`). |
@@ -21,18 +21,16 @@ end-to-end on real Qwen within budget, in Docker, with adjudicated disputes on t
 
 ## Remaining tasks, in order
 
-1. **Hero run** (Day-2 bar): state hygiene → `npm run run:society` until one run hits
-   4/4 planted bugs + ≥1 adjudicated dispute + executed spec results. Iterate prompts,
-   not architecture. Save that run's `qa/` to `docs/sample-run/`; refresh the README
-   metrics table together with a fresh `npm run run:single` baseline.
-2. **ECS deploy + proof recording** — follow [`DAY4_CHECKLIST.md`](DAY4_CHECKLIST.md)
+1. **ECS deploy + proof recording** — follow [`DAY4_CHECKLIST.md`](DAY4_CHECKLIST.md)
    click by click; paste the recording URL into README (`TODO(day-4)` marker).
-3. **Video** per [`video-script.md`](video-script.md) (dispute visible on the bus,
+2. **Video** per [`video-script.md`](video-script.md) (dispute visible on the bus,
    `PLAYWRIGHT_HEADED=1` for the browser shot) → YouTube, verify logged-out playback.
-4. **Blog draft** (prize track): the model scorecard / 429-vs-403 / context-management story.
-5. **Devpost submission** per [`devpost-draft.md`](devpost-draft.md), then STOP.
+3. **Blog draft** (prize track): the model scorecard / 429-vs-403 / context-management
+   story — plus the Day-2 finding: task-string deliverable contracts beat system-prompt
+   rules for worker-scale models (see UPGRADE_PLAN Day-2 DONE).
+4. **Devpost submission** per [`devpost-draft.md`](devpost-draft.md), then STOP.
 
-Priority if time slips: ECS proof > hero run > video > blog.
+Priority if time slips: ECS proof > video > blog.
 
 ## How to run
 

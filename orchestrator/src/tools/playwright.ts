@@ -160,7 +160,10 @@ export function browserSnapshotTool(qaRoot: string): ToolDef {
               {
                 role: 'user',
                 content: [
-                  { type: 'text', text: `You are a meticulous QA analyst inspecting a screenshot of ${args.url}. ${args.question}` },
+                  { type: 'text', text: `You are a meticulous QA analyst inspecting a screenshot of ${args.url}. ` +
+                    `FIRST, transcribe verbatim every visible heading and any counter/count text exactly as rendered ` +
+                    `(e.g. "Tasks (3)" — if a heading literally shows a non-value like "undefined" or "NaN", quote it exactly). ` +
+                    `THEN answer: ${args.question}` },
                   { type: 'image_url', image_url: { url: `data:image/png;base64,${b64}` } },
                 ],
               },

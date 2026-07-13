@@ -31,6 +31,11 @@ export function raiseDisputeTool(db: DB, bus: Bus, selfName: string): ToolDef {
     run: (args: { bugId: number; raisedBy?: string; claim: string; counterClaim: string }) => {
       const bug = db.getBug(args.bugId);
       if (!bug) return `ERROR: no bug #${args.bugId} to dispute.`;
+      if (bug.found_by === selfName) {
+        return `ERROR: bug #${args.bugId} was filed by YOU (${selfName}). A dispute challenges ANOTHER agent's ` +
+          `finding with your contradicting evidence — disputing your own bug is meaningless. If you no longer ` +
+          `believe this bug, note that in your artefact; otherwise pick a bug filed by a different agent.`;
+      }
       const id = db.raiseDispute({
         bug_id: args.bugId,
         raised_by: args.raisedBy || bug.found_by,

@@ -14,6 +14,8 @@ orchestrator/run*.log
 *.db
 *.db-shm
 *.db-wal
+# …except the committed sample run — judges read its cases/bugs/disputes without spending tokens
+!docs/sample-run/agqrew.db
 
 # Dependencies
 node_modules/

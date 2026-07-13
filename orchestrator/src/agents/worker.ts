@@ -165,6 +165,13 @@ export function scriptWriterTask(ctx: RunContext): string {
     ...siteMapLines(ctx),
     `Credentials:`,
     credLines(ctx),
+    `DELIVERABLE CONTRACT (non-negotiable): result_record calls are your PRIMARY deliverable —`,
+    `finishing with zero result_record calls fails the whole run, a protocol violation.`,
+    `Per module, in this exact order: one probe → ONE flat spec via the shared runner (selectors`,
+    `and expected text inline — SKIP the locators/pages/data tier files) → playwright_run →`,
+    `IMMEDIATELY result_record EVERY case in that spec exactly as observed (PASS/FAIL/BLOCKED),`,
+    `BEFORE any repair. Only then: at most 2 repair cycles, re-record only outcomes that changed,`,
+    `SECTION-DONE, next module. An honest recorded FAIL beats an unrecorded clean run.`,
   ].join('\n');
 }
 
@@ -176,7 +183,10 @@ export function hawkExploreTask(ctx: RunContext): string {
     `Smoke each module first; on smoke pass, run risk-based exploratory testing (SFDIPOT + FEW HICCUPPS).`,
     `Read stored cases with tc_list; read the SFDIPOT map from qa/test-plan-sprint${ctx.sprint}.txt.`,
     `PRIORITY ORACLES straight from the requirements doc — check these FIRST and file bugs immediately:`,
-    `(1) the tasks page header must show an accurate task count;`,
+    `(1) browser_snapshot the tasks page and read its H2 heading VERBATIM from the vision transcript —`,
+    `    the requirements demand an accurate task count in the header (e.g. "Tasks (3)"). If the heading`,
+    `    shows anything that is not the true number — the wrong number, or a non-value like "undefined" —`,
+    `    that is a bug: file it immediately, quoting the heading text exactly;`,
     `(2) DELETE staleness — run this exact sequence, do not skip the DELETE leg:`,
     `    a. POST /api/tasks to create a task (note its id), b. DELETE /api/tasks/{id} via the API,`,
     `    c. GET /api/tasks AND browser_snapshot /tasks — the requirements say the tasks page`,
@@ -185,6 +195,12 @@ export function hawkExploreTask(ctx: RunContext): string {
     `    (Create-then-recheck alone is NOT enough — the delete leg is where refresh defects hide.)`,
     `Budget: browser_snapshot is expensive — use it at most 4 times; bug_file the moment evidence`,
     `is in hand; raise_dispute when your UI evidence contradicts recorded API behaviour (or vice versa).`,
+    `DELIVERABLE CONTRACT (non-negotiable) — your SECTION-DONE for the tasks module is INVALID unless`,
+    `BOTH happened: (a) the full DELETE staleness sequence above was executed and its outcome is on`,
+    `record — either a filed bug (page still shows the deleted task) or an explicit "delete refresh`,
+    `clean" line in your report; filing the count-header bug does NOT satisfy this — they are two`,
+    `separate priority oracles; (b) you called result_record for every stored case (tc_list row ids)`,
+    `you could evaluate with your tools — a module with zero recorded results is a protocol violation.`,
     `Credentials:`,
     credLines(ctx),
   ].join('\n');

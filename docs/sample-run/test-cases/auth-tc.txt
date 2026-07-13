@@ -1,0 +1,144 @@
+TEST CASES — Authentication
+===========================
+Sprint:   1
+Module:   auth
+Source:   User Authentication (P1, High risk)
+Risk:     High
+
+Business Context:
+  This screen enables users to securely access their personal task dashboard. It is the critical entry point for all user activity.
+  User roles in scope: Regular User (no admin or read-only distinction yet)
+  Critical paths: Valid login → dashboard redirect; invalid login → persistent error feedback; empty submission → inline validation
+
+
+TC-001
+------
+Title:          Verify that entering valid credentials and clicking Sign In redirects to the dashboard and displays the Welcome message
+Type:           Functional
+Priority:       High
+Preconditions:  - User account exists with email 'user@test.com' and password 'Passw0rd!'
+  - User is on the /login page
+Steps:
+  1. Navigate to http://localhost:3100/login
+  2. Enter 'user@test.com' in the Email field
+  3. Enter 'Passw0rd!' in the Password field
+  4. Click the Sign In button
+Test Data:
+  - Email: user@test.com
+  - Password: Passw0rd!
+Expected:
+  - Should redirect to http://localhost:3100/dashboard
+  - Should display a welcome message containing the text "Welcome, user@test.com"
+
+
+TC-002
+------
+Title:          Verify that clicking the Sign Out button ends the session and redirects to the login page
+Type:           Functional
+Priority:       High
+Preconditions:  - User is authenticated and on the /dashboard page
+Steps:
+  1. Navigate to http://localhost:3100/dashboard
+  2. Click the Sign Out button in the top-right navigation bar
+Test Data:
+  - N/A
+Expected:
+  - Should redirect to http://localhost:3100/login
+  - Should display the sign-in form with empty Email and Password fields
+
+
+TC-003
+------
+Title:          Verify that submitting invalid credentials displays an appropriate error message
+Type:           Negative
+Priority:       High
+Preconditions:  - User is on the /login page
+Steps:
+  1. Navigate to http://localhost:3100/login
+  2. Enter 'invalid@test.com' in the Email field
+  3. Enter 'wrongpass' in the Password field
+  4. Click the Sign In button
+Test Data:
+  - Email: invalid@test.com
+  - Password: wrongpass
+Expected:
+  - Should display a red error banner at the top of the form containing the text "Invalid email or password"
+  - Should retain the entered email and password values in their respective fields
+
+
+TC-004
+------
+Title:          Verify that submitting empty email and password fields displays inline validation errors
+Type:           Negative
+Priority:       High
+Preconditions:  - User is on the /login page
+Steps:
+  1. Navigate to http://localhost:3100/login
+  2. Leave the Email field empty
+  3. Leave the Password field empty
+  4. Click the Sign In button
+Test Data:
+  - N/A
+Expected:
+  - Should display a red inline error message "This field is required" below the Email field
+  - Should display a red inline error message "This field is required" below the Password field
+  - Should not redirect or submit the form
+
+
+TC-005
+------
+Title:          Verify that entering the maximum allowed email length (254 characters) and valid password allows successful login
+Type:           Boundary
+Priority:       Medium
+Preconditions:  - User account exists with a 254-character email and valid password
+  - User is on the /login page
+Steps:
+  1. Navigate to http://localhost:3100/login
+  2. Enter a 254-character email string in the Email field
+  3. Enter 'Passw0rd!' in the Password field
+  4. Click the Sign In button
+Test Data:
+  - Email: a254charlongemailaddressthatisexactly254characterslongandvalid@example.com (254 chars)
+  - Password: Passw0rd!
+Expected:
+  - Should redirect to http://localhost:3100/dashboard
+  - Should display the welcome message
+
+
+TC-006
+------
+Title:          Verify that the sign-in form renders correctly with proper labels, placeholders, and active button state
+Type:           UI
+Priority:       Medium
+Preconditions:  - User is on the /login page
+Steps:
+  1. Navigate to http://localhost:3100/login
+  2. Observe the sign-in form layout and elements
+Test Data:
+  - N/A
+Expected:
+  - Should display the heading "Sign In" centered at the top of the form
+  - Should display label "Email" above the first input field with placeholder "Enter your email"
+  - Should display label "Password" above the second input field with placeholder "Enter your password"
+  - Should display a disabled Sign In button when both fields are empty
+  - Should display an enabled Sign In button when both fields contain non-whitespace characters
+
+
+TC-007
+------
+Title:          Verify that the sign-in form is fully usable and readable on a 375px wide mobile viewport
+Type:           Mobile
+Priority:       Medium
+Preconditions:  - Browser viewport is set to 375px width × 812px height (iPhone SE portrait)
+  - User is on the /login page
+Steps:
+  1. Set browser viewport to 375×812
+  2. Navigate to http://localhost:3100/login
+  3. Observe layout, spacing, and touch target sizes
+Test Data:
+  - N/A
+Expected:
+  - Should render without horizontal scrolling or overflow
+  - Should display all form labels, inputs, and buttons with readable font size (≥16px)
+  - Should have minimum touch target size of 44×44px for all interactive elements
+  - Should maintain vertical spacing between form fields and button

@@ -46,6 +46,29 @@ The runner holds all control flow. Individual case bodies stay linear. This is t
 
 ---
 
+## Budget discipline — recorded results beat architecture (OVERRIDES the tier model)
+
+Your token budget is finite and history shows it dies during tier-building. The run is
+judged on ONE thing: **specs that executed and `result_record` entries that exist**. A
+beautiful locator/page/data tree with zero recorded results is a FAILED run; one flat spec
+that ran and recorded its outcomes is a successful one.
+
+- **Default path (start here, not with tiers):** per module — one probe, then ONE flat spec
+  (`automation/specs/{module}.spec.ts`) that uses the shared runner but keeps selectors and
+  expected text inline. Run it, `result_record` every case, `SECTION-DONE`, next module.
+  The Locators/Pages/Data tiers are a REFACTORING you perform only after EVERY module has
+  recorded results and ample budget remains — history shows starting with tiers exhausts
+  the budget with zero results recorded, which is a failed run.
+- **Milestone rule (hard):** by roughly half your iteration budget at least one spec must
+  have executed via `playwright_run` with its results recorded. If not, drop everything
+  else and make that true for the first module before any other work.
+- **Phase 3 (flakiness re-runs, CI config, coverage matrix) is a stretch goal** — skip it
+  without guilt unless every module's results are recorded and ample budget remains.
+- Never spend your last iterations polishing a spec: recording an honest FAIL/BLOCKED for
+  what you observed is always better than exhausting the budget chasing a clean run.
+
+---
+
 ## PHASE 0 — Write the shared runner (once, idempotent)
 
 `fs_read qa/automation/runner.ts`. If it is missing, `fs_write` it:
@@ -105,7 +128,24 @@ import { chromium } from 'playwright';
 `fs_write` `automation/locators/{Module}Locators.ts`. Arrow-function properties only, in selector-priority order: `getByRole` → `getByLabel` → `getByPlaceholder` → `getByText` → `data-testid` → xpath → css (last resort). Use `.or(fallback)` for selectors that may vary. Head the file with a comment block recording the observed URL, auth requirement, and the elements the probe found.
 
 ### Step 3 — Tier 2: Page Objects
-`fs_write` `automation/pages/{Module}Page.ts`. Methods named `click*` / `fill*` / `get*` / `verify*`; assertions (`throw new Error(...)` on mismatch) only inside `verify*`. Every `click*` that changes the route must `await Promise.all([page.waitForURL(pattern), locator.click()])` — a bare click races SPA navigation.
+`fs_write` `automation/pages/{Module}Page.ts`. Methods named `click*` / `fill*` / `get*` / `verify*`; assertions (`throw new Error(...)` on mismatch) only inside `verify*`. Every `click*` that changes the route must `await Promise.all([this.page.waitForURL(pattern), locator.click()])` — a bare click races SPA navigation.
+
+**Mandatory class skeleton — the #1 recurring spec killer is a bare `page` reference
+(`page is not defined`) inside a Page Object.** The `Page` instance arrives ONLY through
+the constructor, and every method uses `this.page`, never bare `page`:
+
+```typescript
+import { Page } from 'playwright';
+export class TasksPage {
+  constructor(private page: Page) {}                          // the ONLY way page gets in
+  async navigate() { await this.page.goto(process.env.SITE_URL! + '/tasks'); }
+  async getHeading() { return this.page.locator('h2').first().textContent(); }
+  async verifyCount(n: number) {
+    const h = await this.getHeading();
+    if (h !== `Tasks (${n})`) throw new Error(`heading was "${h}", expected "Tasks (${n})"`);
+  }
+}
+```
 
 ### Step 4 — Signal foundation ready
 `bus_write` `PROGRESS` `qa-script-writer | Tiers 1-2 ready | {module list}`. Then `bus_read` for `TC-READY` signals and process each module the moment its cases exist — do not wait for all.
@@ -153,7 +193,7 @@ runCases(process.env.SITE_URL!, [
 ]);
 ```
 
-Rules for the case bodies (zero tolerance):
+Rules for the case bodies (zero tolerance — except under the Budget-discipline flat-spec fallback, which suspends the selector/data-placement rules):
 - **No loops, no if/else, no try/catch inside a case body** — the runner owns all of that. Repetition or branching goes into a Page Object method.
 - **No selectors, no raw expected strings in the spec** — locators live in Tier 1, expected text in Tier 3.
 - **No `page.waitForTimeout`** — rely on Playwright auto-waiting / `waitForURL`.
@@ -258,6 +298,12 @@ Never ask "should I script this case?", "which selector?", or "should I file thi
 - The runner owns every loop / branch / try-catch. Case bodies stay linear.
 - Record a result for every stored case (`result_record` by row id) — PASS, FAIL, BLOCKED, or SKIP.
 - Only `bug_file` a defect that reproduces after 3 runs and is not your own selector bug.
+- **Litmus test before every `bug_file`:** could a user who has never seen `qa/automation/`
+  hit this? A defect that only manifests inside YOUR code — a title/steps mentioning
+  `AuthPage`, `TasksPage`, locators, `runner.ts`, an import, or an "undefined 'page'
+  variable" — is your own spec error, NEVER a product bug, and filing it (at any severity)
+  is a protocol violation that corrupts the sign-off. Fix your code or record the case
+  BLOCKED instead.
 - Dedupe against existing `BUG-FILED` lines; dispute only same-behaviour contradictions with concrete evidence.
 - Process modules in the exact `E2E-TASK` order; finish one before the next.
 

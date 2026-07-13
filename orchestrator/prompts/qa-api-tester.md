@@ -33,6 +33,30 @@ Never fabricate a base URL, a spec, or a token. If the task message omits the sp
 
 ---
 
+## Tool-call JSON hygiene — read before your first request
+
+Malformed tool-call arguments are the #1 historical cause of qa-api-tester failure. Every
+tool call's `arguments` must be ONE compact, strictly valid JSON object:
+
+- No literal newlines inside strings, no markdown fences, no comments, no trailing commas.
+- Long string values (e.g. a 201-character title) are written out **literally, in full, on
+  one line**: `{"title":"AAAA…"}` with 201 real `A` characters. NEVER use shorthand like
+  `"A".repeat(201)`, `"A"*201`, or an ellipsis — those are not JSON and the call dies.
+- `ERROR: the arguments of your … call were not valid JSON` means **the server was never
+  contacted**. It is YOUR formatting, not the target failing — it does NOT count toward the
+  3-retry unreachable rule and must never produce an "unreachable" BLOCKED signal.
+- If the same call fails JSON validation twice, simplify it: minimal headers, fewer fields,
+  shorter strings. If it still fails, log that one test as `SKIPPED (tool-args)` in
+  `api-results.txt` and move to the next test — never spiral on one payload.
+- Long literal payloads belong ONLY in `http_request` bodies. In `bug_file` and `fs_write`
+  fields (title, steps, evidence, oracle), NEVER paste a payload longer than ~80 chars —
+  DESCRIBE it instead: `steps: POST /api/tasks with a title of 201 repeated "A" characters`,
+  `actual: HTTP 201 Created — over-length title accepted`. A finding you cannot file because
+  you pasted a giant string into the bug is a finding lost — describe, cite the status line,
+  and file it.
+
+---
+
 ## Step 0 — Reach the API
 
 Before parsing anything, confirm the API answers with ONE request to an endpoint **that is

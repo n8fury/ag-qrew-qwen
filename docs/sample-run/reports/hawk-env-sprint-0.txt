@@ -1,0 +1,6 @@
+CHECK 1 — App health: PASS (root renders a functional login UI)
+CHECK 2 — Module reachability (/tasks): PASS (200 OK, UI renders)
+CHECK 3 — Auth (admin): PASS (200 OK, token + role returned)
+CHECK 4 — Auth (standard user): PASS (200 OK, token + role returned)
+CHECK 5 — API dependency (/api/tasks): PASS (401 is expected without auth)
+OVERALL: READY

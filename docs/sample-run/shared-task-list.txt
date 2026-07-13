@@ -1,0 +1,31 @@
+META: project_name=Demo Task Manager | sprint=1 | site=http://localhost:3100 | api_spec=qa/openapi.yaml | from: qa-lead | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:40:43.976Z
+HAWK-ENV: READY | qa/reports/hawk-env-sprint-0.txt | from: qa-hawk | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:41:20.525Z
+DONE: qa-hawk | from: qa-hawk | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:41:21.853Z
+PROGRESS: test plan written | test-plan-sprint1.txt | 2 features | risk 4/10 | from: qa-lead | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:41:52.768Z
+DONE: qa-lead | from: qa-lead | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:41:56.539Z
+TC-READY: auth | from: qa-tc-writer | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:44:03.043Z
+MODULE-DONE: auth | 7 cases | ids: 1,2,3,4,5,6,7 | from: qa-tc-writer | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:44:04.826Z
+TC-READY: tasks | from: qa-tc-writer | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:44:54.264Z
+MODULE-DONE: tasks | 7 cases | ids: 8,9,10,11,12,13,14 | from: qa-tc-writer | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:44:56.050Z
+DONE: qa-tc-writer | auth-tc.txt, tasks-tc.txt | 14 cases | from: qa-tc-writer | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:44:57.320Z
+DONE: qa-tc-writer | from: qa-tc-writer | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:45:01.013Z
+SECTION-DONE: qa-script-writer | auth | 3 cases | 0 pass, 3 fail | from: qa-script-writer | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:51:10.777Z
+SECTION-DONE: qa-script-writer | tasks | 2 cases | 0 pass, 2 fail | from: qa-script-writer | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:51:10.777Z
+DONE: qa-script-writer | specs/auth.spec.ts,specs/tasks.spec.ts | 0 pass, 5 fail, 0 skip | coverage: 100% | flaky: 0 | matrix: automation/coverage-matrix.txt | from: qa-script-writer | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:51:17.658Z
+DONE: qa-script-writer | from: qa-script-writer | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:51:21.185Z
+BUG-FILED: #1 [High] Tasks UI: H2 heading shows 'Tasks (undefined)' instead of accurate count when loading tasks page | from: qa-hawk | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:51:42.101Z
+BUG-FILED: #2 [High] Tasks UI: Page shows deleted task 'Test task for DELETE staleness check' after successful API DELETE | from: qa-hawk | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:51:57.905Z
+SECTION-DONE: qa-hawk | auth | 1 pass, 0 fail, 0 blocked | 0 bugs | confidence: HIGH | sfdipot: S✓F✓D✓I✓P✓O✓T✓ | from: qa-hawk | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:52:14.179Z
+SECTION-DONE: qa-hawk | tasks | 1 pass, 1 fail, 0 blocked | 2 bugs | confidence: HIGH | sfdipot: S✓F✓D✓I✓P✓O✓T✓ | from: qa-hawk | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:52:14.180Z
+DONE: qa-hawk | from: qa-hawk | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:52:17.067Z
+BUG-FILED: #3 [High] POST /api/tasks returns 200 with error body when title is missing | from: qa-api-tester | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:52:33.184Z
+BUG-FILED: #4 [Medium] POST /api/tasks accepts 201-character title despite maxLength: 200 | from: qa-api-tester | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:52:39.393Z
+BUG-FILED: #5 [Critical] POST /api/tasks returns 201 without Authorization header | from: qa-api-tester | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:52:43.299Z
+PROGRESS: tasks | 3/3 endpoints | from: qa-api-tester | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:52:48.145Z
+SECTION-DONE: tasks | 3 endpoints | 0 pass, 3 fail | from: qa-api-tester | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:52:48.145Z
+DISPUTE: 1 | from: qa-api-tester | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:53:02.719Z
+BLOCKED: qa-api-tester exceeded token budget (154998) | from: qa-api-tester | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:53:02.720Z
+PROGRESS: rebuttal by qa-hawk on bug #2: The challenge from qa-api-tester is correct. The API did return a 200 status and the task with id 7 is not included in the subsequent GET request, indicating th | from: qa-lead | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:53:04.850Z
+RESOLVED: dispute #1 on bug #2: RECLASSIFIED | from: qa-lead | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:53:06.956Z
+DONE: sign-off-report.txt | verdict: FAIL | from: qa-lead | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:53:48.441Z
+DONE: qa-lead | from: qa-lead | session: society-2026-07-13T06-40-43-959Z | ts: 2026-07-13T06:53:51.540Z

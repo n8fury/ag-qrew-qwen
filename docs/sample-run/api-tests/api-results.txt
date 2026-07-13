@@ -1,0 +1,7 @@
+API RESULTS — Demo Task Manager / 1
+========================================
+
+RESOURCE: tasks
+  POST /api/tasks — no title (authed)        → HTTP 201 (expected 400)       → FAIL → bug #3
+  POST /api/tasks — 201-char title (authed)  → HTTP 201 (expected 400)       → FAIL → bug #4
+  POST /api/tasks — no Authorization header  → HTTP 201 (expected 401)       → FAIL → bug #5

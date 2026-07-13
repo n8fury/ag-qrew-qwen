@@ -1,0 +1,208 @@
+TEST PLAN
+=========
+Project:     Demo Task Manager
+Sprint:      1
+Date:        2023-11-28
+Source doc:  Sprint 1 — Demo Task Manager
+Prepared by: QA Lead Agent
+Status:      Active
+
+Sprint Risk Score: 4/10 — MEDIUM
+Risk signals: Vague feature description, Feature with no acceptance criteria, New third-party integration, Untestable scope item
+
+1. OBJECTIVE
+------------
+The objective of this sprint is to deliver a basic task management system where users can sign in and manage their tasks. QA must prove that the authentication and task management features work as expected.
+
+2. SCOPE
+--------
+IN SCOPE
+Feature                   | Change Type          | Priority | Risk
+--------------------------|----------------------|----------|-----
+User Authentication       | New                  | P1       | H
+Task Management           | New                  | P1       | H
+
+OUT OF SCOPE
+Area                      | Reason
+--------------------------|--------------------------------------------
+
+Priority: P1=core user flow  P2=supporting flow  P3=cosmetic/low-impact
+Risk:      H=auth/payment/data  M=UI or workflow change  L=copy/config
+
+3. TEST STRATEGY
+----------------
+Test Types
+Type          | Coverage                                       | Owner
+--------------|------------------------------------------------|------------------
+Smoke         | One happy-path action per feature — build gate | qa-hawk
+Functional E2E| Core user flows for in-scope features          | qa-script-writer
+API           | Changed endpoints (if API docs given)          | qa-api-tester
+Exploratory   | Edge cases, UX, broken states, risk-based      | qa-hawk
+Regression    | Critical existing flows at risk                | qa-script-writer
+
+Entry Criteria
+  [ ] Environment check passed (HAWK-ENV: READY on the bus)
+  [ ] Smoke passed for the feature under test
+  [ ] Test data seeded or generatable
+
+Exit Criteria
+  [ ] 100% of P1 and P2 test cases executed
+  [ ] Zero open Critical bugs
+  [ ] Zero P1-blocking High bugs
+  [ ] Regression flows in Section 7 pass
+  [ ] All DISPUTE signals RESOLVED
+  [ ] Sign-off report written
+
+4. RISK ASSESSMENT
+------------------
+Risk                           | Likelihood | Impact | Mitigation
+-------------------------------|------------|--------|------------------------------------------
+Staging instability            | High       | High   | Regular environment checks, quick fixes
+Undocumented changes           | Medium     | High   | Strict version control, clear changelogs
+Missing test data              | High       | High   | Pre-seed test data, use mock services
+Flaky automation               | Medium     | Medium | Robust test scripts, regular maintenance
+New third-party integration    | High       | High   | Thorough testing, fallback plans
+
+5. TEST ENVIRONMENT
+-------------------
+Setting            | Value
+-------------------|----------------------------------------
+Site URL           | http://localhost:3100
+Viewport           | 1280x800 desktop, 375x812 mobile
+API Base URL       | /api
+API Documentation  | qa/openapi.yaml
+Bug Tracking       | local store (bug_file) + signal bus
+
+6. FEATURE ANALYSIS & EXPECTED RESULTS
+---------------------------------------
+--- Feature: User Authentication ---
+
+Change type:     New
+Risk level:      High
+Affected areas:  Sign-in page, auth API
+Dependencies:    None
+
+SFDIPOT Coverage Map
+  Structure:   Sign-in form, error messages, success messages
+  Function:    Submit valid credentials, submit invalid credentials, handle session
+  Data:        Email (valid, invalid, empty), Password (valid, invalid, empty)
+  Interfaces:  Auth API (login, logout)
+  Platform:    Desktop, Mobile
+  Operations:  Session persistence, rate limiting
+  Time:        Timeout mid-flow, async operations
+
+Oracles (FEW HICCUPPS)
+  Claims      — behaviour stated in the source doc / spec
+  Comparable  — consistent with sibling features in the same product
+  History     — consistent with how this flow behaved before the change
+  User expectations — what a reasonable user would expect here
+  World       — real-world facts (dates, currency, arithmetic) hold
+  Purpose     — serves the stated business intent
+  Statutes/Standards — validation, a11y, security norms
+
+What MUST work (positive expected results)
+  Scenario                              | Expected Result
+  --------------------------------------|----------------------------------------
+  Valid email and password submitted   | User is authenticated and redirected to /tasks
+  Invalid email or password submitted  | Error message displayed, user stays on sign-in page
+  Empty fields submitted               | Error message displayed, user stays on sign-in page
+
+What MUST be handled (negative expected results)
+  Scenario                              | Expected Result
+  --------------------------------------|----------------------------------------
+  Rate limit exceeded                  | Error message displayed, user stays on sign-in page
+  Network failure during login         | Error message displayed, user stays on sign-in page
+
+Regression concerns (existing flows that must keep working)
+  - None
+
+--- Feature: Task Management ---
+
+Change type:     New
+Risk level:      High
+Affected areas:  Tasks page, task API
+Dependencies:    Authenticated session
+
+SFDIPOT Coverage Map
+  Structure:   Task list, task form, error messages, success messages
+  Function:    List tasks, create task, update task, delete task
+  Data:        Task title (valid, over-length, empty), done flag (true, false)
+  Interfaces:  Task API (list, create, update, delete)
+  Platform:    Desktop, Mobile
+  Operations:  Session persistence, rate limiting
+  Time:        Timeout mid-flow, async operations
+
+Oracles (FEW HICCUPPS)
+  Claims      — behaviour stated in the source doc / spec
+  Comparable  — consistent with sibling features in the same product
+  History     — consistent with how this flow behaved before the change
+  User expectations — what a reasonable user would expect here
+  World       — real-world facts (dates, currency, arithmetic) hold
+  Purpose     — serves the stated business intent
+  Statutes/Standards — validation, a11y, security norms
+
+What MUST work (positive expected results)
+  Scenario                              | Expected Result
+  --------------------------------------|----------------------------------------
+  List tasks                            | Current list of tasks is displayed with an accurate count
+  Create task with valid title         | Task is added to the list, user stays on /tasks
+  Update task with valid title         | Task is updated in the list, user stays on /tasks
+  Delete task                           | Task is removed from the list, user stays on /tasks
+
+What MUST be handled (negative expected results)
+  Scenario                              | Expected Result
+  --------------------------------------|----------------------------------------
+  Create task with missing title       | Error message displayed, task not added, user stays on /tasks
+  Create task with over-length title   | Error message displayed, task not added, user stays on /tasks
+  Update task with over-length title   | Error message displayed, task not updated, user stays on /tasks
+  Unauthorized access attempt          | Redirect to / (sign-in page)
+
+Regression concerns (existing flows that must keep working)
+  - None
+
+7. REGRESSION TESTING PLAN
+---------------------------
+Flow                     | Why At Risk                    | Priority
+-------------------------|--------------------------------|----------
+None identified          | None identified               | N/A
+
+8. DEPENDENCIES & ASSUMPTIONS
+-----------------------------
+Internal
+  - None
+External
+  - None
+Assumptions (gap analysis — documented, not asked)
+  - [GAP-001] Vague feature description — ASSUMED: The sign-in page is the root page (/).
+  - [GAP-002] Feature with no acceptance criteria — ASSUMED: The tasks page must always show the current list of tasks with an accurate count.
+  - [GAP-003] Untestable scope item — ASSUMED: The tasks page must always show the current list of tasks with an accurate count.
+Blockers (known issues that would prevent testing)
+  - None identified
+
+9. TEST DELIVERABLES
+--------------------
+Deliverable              | Owner            | Location
+-------------------------|------------------|-----------------------------
+Test cases               | qa-tc-writer     | test DB (source of truth, via tc_store) + qa/test-cases/{module}-tc.txt export
+E2E specs                | qa-script-writer | qa/automation/specs/
+API test results         | qa-api-tester    | test DB (results) + bus
+Bug reports              | all workers      | bug DB (bug_file) + BUG-FILED signals
+Sign-off report          | qa-lead          | qa/sign-off-report.txt
+
+10. SCHEDULE
+------------
+Phase 0 env check (qa-hawk) -> Phase 1 plan (qa-lead) -> Phase 2 parallel execution (all workers) -> Phase 3 dispute adjudication (qa-lead) -> Phase 4 sign-off (qa-lead). The orchestrator gates each transition; workers coordinate via TC-READY on the bus.
+
+11. PASS / FAIL CRITERIA
+------------------------
+Outcome            | Condition                                        | Action
+-------------------|--------------------------------------------------|---------------------------
+PASS               | Zero Critical bugs, zero P1-blocking High bugs   | Proceed to release
+CONDITIONAL PASS   | 1-2 High bugs with documented workaround         | Product Owner must approve
+FAIL               | Any Critical open, >2 Highs, or P1 regression    | Block release
+
+SELF-AUDIT
+----------
+Result:     7/7 passed
+Confidence: HIGH
+Fixed:      nothing — plan passed all checks

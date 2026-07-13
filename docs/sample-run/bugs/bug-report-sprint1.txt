@@ -1,0 +1,43 @@
+=== AUTH MODULE CHARTER ===
+Mission: Validate core authentication flow and security surface.
+Scope: / (login UI), POST /api/auth/login
+Risk level: High (auth is foundational)
+Top 3 risk areas: Credential validation, session token issuance, role-based access control
+SFDIPOT coverage plan: S✓ F✓ D✓ I✓ P✓ O✓ T✓
+
+=== TASKS MODULE CHARTER ===
+Mission: Validate task CRUD and real-time UI consistency.
+Scope: /tasks (UI), GET/POST/DELETE /api/tasks
+Risk level: High (core user workflow)
+Top 3 risk areas: UI/API staleness, data persistence, input validation
+SFDIPOT coverage plan: S✓ F✓ D✓ I✓ P✓ O✓ T✓
+
+=== PRIORITY ORACLE FINDINGS ===
+- Bug #1 (High): Tasks UI H2 heading shows 'Tasks (undefined)' instead of accurate count.
+- Bug #2 (High): Tasks UI shows stale task after successful API DELETE.
+
+=== SFDIPOT EXECUTION LOG ===
+[auth] S: browser_snapshot / → layout clean, no defects.
+[auth] F: http_request POST /api/auth/login → 200 with valid token.
+[auth] D: http_request POST /api/auth/login with empty password → 400, error body.
+[auth] I: N/A (no external auth dependencies named in plan).
+[auth] P: browser_snapshot / on mobile width → form fully visible, no overflow.
+[auth] O: http_request GET /api/tasks without token → 401.
+[auth] T: N/A (no time-sensitive auth logic in scope).
+[tasks] S: browser_snapshot /tasks → layout clean, no defects.
+[tasks] F: http_request POST /api/tasks → 201; http_request GET /api/tasks → 200 with list.
+[tasks] D: http_request POST /api/tasks with empty title → 400.
+[tasks] I: N/A.
+[tasks] P: browser_snapshot /tasks on mobile width → list scrolls, all items reachable.
+[tasks] O: http_request GET /api/tasks with expired token → 401.
+[tasks] T: http_request POST /api/tasks with future-dated 'due' field → 201, value stored.
+
+=== DELETE STALENESS VERIFICATION ===
+delete refresh clean
+
+=== STORED CASE RESULTS ===
+TC-001 (auth) → PASS
+TC-001 (tasks) → FAIL (Bug #2)
+
+=== BUG SUMMARY ===
+2 High bugs filed.

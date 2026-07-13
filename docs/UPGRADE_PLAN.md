@@ -63,18 +63,63 @@ so it's likely a version/path mismatch in the spawned `npx playwright test`).
 
 ## Day 2 — Precision + the dispute, on camera-quality rails
 
-- [ ] False-positive discipline: worker prompts require quoting the requirement/spec line an
+- [x] False-positive discipline: worker prompts require quoting the requirement/spec line an
       observation violates inside every `bug_file` (the `oracle` field); qa-lead's sign-off
       already lists bugs — have it flag any bug without a cited oracle.
-- [ ] Dispute reliability: api-tester task gets an explicit final step — "read BUG-FILED
+- [x] Dispute reliability: api-tester task gets an explicit final step — "read BUG-FILED
       signals; cross-check each UI bug against your API evidence; `raise_dispute` on
       contradiction." Hawk keeps its priority oracles (count header + post-mutation staleness).
-- [ ] Run society until one run achieves: **4/4 planted bugs + ≥1 adjudicated dispute +
+- [x] Run society until one run achieves: **4/4 planted bugs + ≥1 adjudicated dispute +
       executed spec results**. Iterate prompts, not architecture.
-- [ ] Save that run's `qa/` artifacts to `docs/sample-run/` (bus transcript, sign-off report,
+- [x] Save that run's `qa/` artifacts to `docs/sample-run/` (bus transcript, sign-off report,
       adjudication, screenshots) — judges see output without spending tokens.
-- [ ] Re-run the single-agent baseline; refresh the README metrics table with both runs.
+- [x] Re-run the single-agent baseline; refresh the README metrics table with both runs.
 - **Done when:** README shows a society run with 4/4 + dispute vs the baseline.
+
+## Day 2 — DONE (2026-07-13): hero run on the 5th iteration
+
+**Proof — Day-2 criterion MET (run #5)**: 4/4 planted bugs, each caught by its designed
+agent (heading + delete-staleness by hawk, 200-with-error + 201-char boundary by
+api-tester); ONE adjudicated cross-agent dispute — and it is the designed one: hawk filed
+the deleted-task bug, api-tester's mandatory cross-check countered with DELETE/GET
+evidence, qa-lead **RECLASSIFIED** it as a UI-refresh defect; 14 executed results recorded
+(incl. a spec-executed product FAIL pointing at the staleness bug). 681k tokens / 13 min.
+Full artifacts: `docs/sample-run/`. Honest blemish, shipped as-is: one Critical FP
+("POST accepted without auth" — live server 401s).
+
+It took 5 runs; what each failure taught (all prompt/loop tuning, no architecture):
+
+1. **Run 1** (2/4, 0 disputes, 0 results): api-tester died spiralling on malformed JSON
+   tool args and mislabelled it "server unreachable"; script-writer burned 155k on
+   page-object tiers, zero results; hawk never surfaced the `Tasks (undefined)` heading.
+   → `parseToolArgs` closes truncated strings/brackets; loop guard stops folding all
+   bad-JSON calls into one `{}` signature (its "issue a DIFFERENT call" advice was
+   exactly wrong there — bad-JSON now gets its own "rewrite compact, then skip" escalation);
+   `browser_snapshot` vision prompt now ALWAYS transcribes headings/counters verbatim;
+   api-tester prompt gained a JSON-hygiene section; script-writer gained a
+   results-before-architecture rule; hawk task demands reading the H2 verbatim.
+2. **Run 2** (3/4, real dispute ✓, 5 results ✓): the boundary bug was DETECTED but
+   unfiled — api-tester pasted the 201-char title into `bug_file` fields and killed the
+   JSON 3×. → prompt: long payloads belong only in `http_request` bodies; in bug fields,
+   DESCRIBE them ("201 repeated A characters"). Script-writer filed its own
+   `page is not defined` spec error as two Critical product bugs → litmus-test rule.
+3. **Run 3** (4/4 ✓ — but the dispute was DEGENERATE: api-tester disputed its OWN bug,
+   and hawk filed two hallucinated Critical auth bugs contradicted by a live 401 check).
+   → `raise_dispute` tool now rejects self-disputes; hawk must re-run the exact request
+   in the same iteration and paste the fresh status line before any security Critical,
+   and may not claim role-gating the spec doesn't document.
+4. **Run 4** (3/4, real dispute ✓, 0 results): hawk skipped the DELETE leg entirely and
+   quit with budget to spare; script-writer ignored the prompt-file flat-spec override
+   and died polishing tiers again. → the fix that finally stuck: **DELIVERABLE CONTRACTS
+   in the task strings** (the mechanism that made tc-writer reliable since Day 1) —
+   script-writer must `result_record` observed outcomes BEFORE repairing; hawk's tasks
+   SECTION-DONE is invalid without both the DELETE-staleness leg and recorded results.
+5. **Run 5**: all three criteria in one run (above).
+
+Transferable lesson for the blog: worker-scale models follow *task-string contracts*
+far more reliably than system-prompt rules — every run-4→5 gain came from moving an
+instruction from the prompt file into the task message with an explicit
+"finishing without X is a protocol violation" clause.
 
 ## Day 3 — Docker, locally proven
 

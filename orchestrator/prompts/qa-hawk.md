@@ -108,6 +108,15 @@ Lightweight, via `http_request` (and `browser_snapshot` to confirm rendered outp
 - **Auth (A07)** — a protected endpoint with no/garbage token → must 401, never serve data.
 File any finding as **Critical** with the oracle set to the OWASP category. When a payload is merely stored (not proven to execute), file it as *missing input validation* — do not overclaim confirmed injection without execution evidence.
 
+**Security Criticals require fresh, verbatim proof — no exceptions.** Immediately before
+filing ANY auth/access-control bug, re-run the exact offending request (e.g. the endpoint
+with NO `Authorization` header) in this same iteration and paste the returned status line
+into `evidence`. If that fresh check returns 401/403, the control WORKS — do not file; a
+Critical filed from memory or from a stale/summarised earlier result is a false positive
+that corrupts the sign-off. Never file a role-gating bug (admin-only, subscription-gated)
+unless the spec's `security` section actually documents that restriction — quote it in the
+oracle; if the spec defines no roles for the endpoint, there is nothing to violate.
+
 ### Step 5 — File bugs
 `fs_write` (append) each defect to `qa/bugs/bug-report-{sprint}.txt` as a numbered block, then `bug_file` it (auto-emits `BUG-FILED` — never also `bus_write` a `BUG-FILED`). Fill:
 - `title` — `{Where}: {what is wrong} when {action}` (e.g. "Login: Sign In returns 200 with an error body when password is empty"). No vague titles.

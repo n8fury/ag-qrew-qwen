@@ -1,0 +1,141 @@
+TEST CASES — Tasks
+==================
+Sprint:   1
+Module:   tasks
+Source:   Task Management (P1, High risk)
+Risk:     High
+
+Business Context:
+  This screen allows authenticated users to create, view, update, and delete personal tasks. It is the core productivity surface.
+  User roles in scope: Regular User only (no sharing or permissions yet)
+  Critical paths: Add new task → appears in list; mark complete → visual change + persistence; delete → immediate removal
+
+
+TC-001
+------
+Title:          Verify that entering a new task title and clicking Add creates the task and displays it in the task list
+Type:           Functional
+Priority:       High
+Preconditions:  - User is authenticated and on the /tasks page
+  - Task list is initially empty or contains existing tasks
+Steps:
+  1. Navigate to http://localhost:3100/tasks
+  2. Enter 'Buy groceries' in the New Task input field
+  3. Click the Add button
+Test Data:
+  - Task title: Buy groceries
+Expected:
+  - Should display a new task card in the task list containing the text "Buy groceries"
+  - Should display a checkbox next to the task title
+  - Should display a Delete button next to the task title
+
+
+TC-002
+------
+Title:          Verify that clicking the checkbox next to a task marks it as completed and updates its visual state
+Type:           Functional
+Priority:       High
+Preconditions:  - User is authenticated and on the /tasks page
+  - At least one incomplete task exists in the list
+Steps:
+  1. Navigate to http://localhost:3100/tasks
+  2. Click the checkbox next to the task titled "Buy groceries"
+Test Data:
+  - N/A
+Expected:
+  - Should strike through the task title text "Buy groceries"
+  - Should change the task card background to light gray
+  - Should persist the completed state after page refresh
+
+
+TC-003
+------
+Title:          Verify that submitting an empty task title displays an inline validation error
+Type:           Negative
+Priority:       High
+Preconditions:  - User is authenticated and on the /tasks page
+Steps:
+  1. Navigate to http://localhost:3100/tasks
+  2. Leave the New Task input field empty
+  3. Click the Add button
+Test Data:
+  - N/A
+Expected:
+  - Should display a red inline error message "Task title cannot be empty" below the input field
+  - Should not add any new task to the list
+
+
+TC-004
+------
+Title:          Verify that attempting to edit a task with a title longer than 255 characters fails and displays an error
+Type:           Negative
+Priority:       Medium
+Preconditions:  - User is authenticated and on the /tasks page
+  - At least one task exists in the list
+Steps:
+  1. Navigate to http://localhost:3100/tasks
+  2. Click the Edit button next to any task
+  3. Replace the task title with a 256-character string
+  4. Click Save
+Test Data:
+  - Task title: a256charlongtasktitlethatisexactly256characterslongandexceedsthemaximumallowedlength (256 chars)
+Expected:
+  - Should display a red error banner containing the text "Task title must be 255 characters or fewer"
+  - Should retain the original task title in the edit field
+
+
+TC-005
+------
+Title:          Verify that the task list displays the empty state illustration and message when no tasks exist
+Type:           Edge
+Priority:       Medium
+Preconditions:  - User is authenticated and on the /tasks page
+  - User has no tasks (all deleted or never added)
+Steps:
+  1. Navigate to http://localhost:3100/tasks
+  2. Observe the main content area
+Test Data:
+  - N/A
+Expected:
+  - Should display an illustration (e.g., clipboard icon) centered in the content area
+  - Should display the heading "You have no tasks yet"
+  - Should display the subheading "Add your first task to get started"
+
+
+TC-006
+------
+Title:          Verify that the task list renders with consistent spacing, status indicators, and visible action buttons
+Type:           UI
+Priority:       Medium
+Preconditions:  - User is authenticated and on the /tasks page
+  - Task list contains at least two tasks (one completed, one pending)
+Steps:
+  1. Navigate to http://localhost:3100/tasks
+  2. Observe the visual appearance of each task card
+Test Data:
+  - N/A
+Expected:
+  - Should display uniform vertical spacing between task cards
+  - Should display a green checkmark icon next to completed tasks
+  - Should display a gray circle icon next to pending tasks
+  - Should display visible Edit and Delete buttons on hover (desktop) or always visible (mobile)
+
+
+TC-007
+------
+Title:          Verify that the task list is fully functional and readable on a 375px wide mobile viewport
+Type:           Mobile
+Priority:       Medium
+Preconditions:  - Browser viewport is set to 375px width × 812px height (iPhone SE portrait)
+  - User is authenticated and on the /tasks page
+Steps:
+  1. Set browser viewport to 375×812
+  2. Navigate to http://localhost:3100/tasks
+  3. Scroll through the task list and interact with controls
+Test Data:
+  - N/A
+Expected:
+  - Should render without horizontal overflow or clipping
+  - Should allow vertical scrolling of the task list when more than 5 tasks exist
+  - Should display all action buttons (Edit, Delete, checkbox) with minimum 44×44px touch targets
+  - Should maintain readable font size (≥16px) for all task titles and status indicators

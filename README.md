@@ -150,28 +150,31 @@ CLI flags: `--mode society|single`, `--interactive` (human proceed gate via stdi
 
 Both modes run the same job and write `qa/metrics.json` (keyed `society` / `single`).
 Measured on real Qwen (qwen-max lead / qwen-plus workers / qwen-vl-max vision), same demo-app,
-same requirements doc, free-tier rate limits included in wall-clock:
+same requirements doc, same day (2026-07-13), free-tier rate limits included in wall-clock.
+The society run's complete artifacts — bus transcript, sign-off, adjudication, screenshots,
+SQLite store — are committed at [`docs/sample-run/`](docs/sample-run/), so you can read a
+real run without spending a token:
 
 | Metric | Society (5 agents) | Single agent |
 |---|---|---|
-| Test cases stored | **16** | 9 |
-| Bugs filed | **8** (incl. planted #1, found via qwen-vl vision) | 1 |
-| Planted bugs found | #1 this run; #2 + #3 in an earlier same-day run | #3 |
-| Test results recorded | 0 (executors hit token budgets) | 6 (5 pass / 1 fail) |
-| Disputes raised / adjudicated | 0 this run (mechanism verified offline — see below) | 0 — *structurally impossible* |
-| Total tokens | 1,397,186 | 111,691 |
-| Wall-clock | 23.1 min | 0.9 min — **ended on a protocol error** |
-| Outcome | full sign-off report with verdict | run aborted; no sign-off |
+| Test cases stored | 14 | 9 |
+| Planted bugs found (of 4) | **4/4, in one run** — each by the agent designed for it: 2 UI by qa-hawk (incl. the vision-read `Tasks (undefined)` header), 2 API by qa-api-tester (incl. the 200-with-error-body) | 2/4 cleanly (#1, #3); two more findings conflate real symptoms with wrong claims |
+| Bugs filed | 5 — the 4 planted + 1 false positive, shipped as-is | 5 — 2 clean, 2 conflated, 1 = its own broken test env filed as a product bug |
+| Test results recorded | 14 (1 pass / 13 fail, incl. a spec-executed FAIL pinpointing the staleness bug) | 8 (6 pass / 2 fail) |
+| Disputes raised / adjudicated | **1 / 1 — the designed conflict, live**: qa-hawk filed "deleted task still shown" as data-integrity; qa-api-tester's DELETE/GET evidence contradicted it; qa-lead **RECLASSIFIED** it as a UI-refresh defect | 0 — *structurally impossible* |
+| Total tokens | 681,380 | 156,991 |
+| Wall-clock | 13.1 min | 2.0 min |
+| Outcome | full sign-off with verdict | sign-off written, but budget exhausted mid-run |
 
-Honest notes: (1) the single agent is cheap but brittle — it died on a malformed tool call
-51 seconds in, after finding 1 of 4 planted bugs; the society survived every individual
-worker failure today (budget exhaustion, rate limits, model errors) and always produced a
-sign-off, which is the actual argument for the architecture; (2) several of the society's
-auth findings are over-eager (false positives) — worker-model precision varies and we report
-it as-is; (3) the dispute path (raise → rebuttal → adjudicate) runs green in the offline proof
-(`npm run demo:mock`, 8 invariants) but did not trigger in this recorded run; (4) the single
-agent cannot raise disputes at all — it has no `raise_dispute` tool and nobody to disagree
-with. Conflict resolution is a property of the society, not of any model.
+Honest notes: (1) the society's one Critical is a **false positive** ("POST accepted without
+auth" — the live server returns 401); worker-model precision varies and we ship the run as-is
+rather than cherry-pick, which is also why the run's own sign-off verdict is FAIL; (2) most of
+the society's FAIL results are selector-timeout noise from the script-writer's
+record-before-repair discipline — an honest recorded FAIL beats an unrecorded clean run;
+(3) the single agent is cheap and genuinely useful, but it misses the two bugs that need
+cross-layer evidence (the boundary bug and the staleness bug behind the dispute), and it
+cannot dispute anything — it has no `raise_dispute` tool and nobody to disagree with.
+Conflict resolution is a property of the society, not of any model.
 
 ---
 

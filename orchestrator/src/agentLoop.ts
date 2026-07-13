@@ -131,7 +131,32 @@ export function parseToolArgs(rawIn: string | null | undefined): { args: any } |
   t = escapeControlCharsInStrings(t);
   try { return { args: JSON.parse(t) }; } catch { /* one more repair */ }
   t = t.replace(/,\s*([}\]])/g, '$1'); // trailing commas
+  try { return { args: JSON.parse(t) }; } catch { /* last resort: close what was left open */ }
+  t = closeUnterminated(t);
   try { return { args: JSON.parse(t) }; } catch { return null; }
+}
+
+/** Close an unterminated trailing string and any unclosed braces/brackets — models
+ *  cut payloads off mid-string when they run out of output budget. */
+function closeUnterminated(s: string): string {
+  let inString = false;
+  const stack: string[] = [];
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inString) {
+      if (c === '\\') { i++; continue; }
+      if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') inString = true;
+    else if (c === '{') stack.push('}');
+    else if (c === '[') stack.push(']');
+    else if (c === '}' || c === ']') { if (stack[stack.length - 1] === c) stack.pop(); }
+  }
+  let out = s;
+  if (inString) out += '"';
+  while (stack.length) out += stack.pop();
+  return out;
 }
 
 export class AgentLoop {
@@ -201,7 +226,8 @@ export class AgentLoop {
         assistantCalls.push(callRef);
         for (const call of msg.tool_calls) {
           const tool = tools[call.function.name];
-          const parsed = parseToolArgs(call.function.arguments);
+          const rawArgs = call.function.arguments ?? '';
+          const parsed = parseToolArgs(rawArgs);
           // Always write valid JSON back into the assistant message — DashScope
           // rejects the whole NEXT request (400, non-retriable) if history
           // contains non-JSON function.arguments.
@@ -227,11 +253,23 @@ export class AgentLoop {
           }
           // Loop guard: nudge at 3 identical (call, result) pairs; at 5, stop
           // feeding the result back at all — the content itself is the bait.
-          const sig = `${call.function.name}|${call.function.arguments}`;
+          // Unparseable calls were rewritten to '{}' above, which would fold every
+          // bad-JSON attempt of a tool into ONE signature and trip the guard with
+          // "issue a DIFFERENT call" — the opposite of the right advice (retry the
+          // SAME call with fixed JSON). Key those on the raw text instead, and give
+          // them their own escalation.
+          const sig = parsed
+            ? `${call.function.name}|${call.function.arguments}`
+            : `${call.function.name}|!json|${rawArgs.slice(0, 300)}`;
           const prev = seenCalls.get(sig);
           const repeats = prev && prev.last === result ? prev.n + 1 : 1;
           seenCalls.set(sig, { n: repeats, last: result });
-          if (repeats >= 5) {
+          if (!parsed && repeats >= 3) {
+            result += `\n\n[loop guard] This is malformed-JSON failure #${repeats} for this exact payload. The server was ` +
+              `NEVER contacted — this is your argument formatting, not the target failing, so it never counts as "unreachable". ` +
+              `Rewrite the arguments as ONE compact line (shorter strings, fewer headers/fields). If you cannot express this ` +
+              `payload, log the test as SKIPPED in your artefact and move to your next deliverable.`;
+          } else if (repeats >= 5) {
             result = `[loop guard] Call #${repeats} of ${call.function.name} with identical arguments and an identical result. ` +
               `The result is now WITHHELD. You are stuck in a loop. Issue a DIFFERENT call that advances your task ` +
               `(your next deliverable per your instructions), or finish with a plain-text summary of what is done and what is blocked.`;
