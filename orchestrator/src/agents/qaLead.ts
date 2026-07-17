@@ -4,10 +4,11 @@ import { config } from '../config.js';
 import { Bus, type Signal } from '../bus.js';
 import { DB, type Bug, type Dispute } from '../db.js';
 import { adjudicate } from '../adjudicate.js';
+import { probeRoutes, routesToProbe } from '../domProbe.js';
 import type { ToolDeps } from '../tools/index.js';
 import {
   runAgent, metaPayload,
-  testPlanTask, hawkEnvTask, tcWriterTask, apiTesterTask, scriptWriterTask, hawkExploreTask, signOffTask,
+  testPlanTask, hawkEnvTask, tcWriterTask, apiTesterTask, apiTesterDisputeTask, scriptWriterTask, hawkExploreTask, signOffTask,
   type RunContext,
 } from './worker.js';
 import type { AgentOutcome } from '../agentLoop.js';
@@ -138,12 +139,44 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
   // trip the free tier's per-minute token window (serial execution was the plan's
   // designated fallback — the signal bus makes the coordination order-independent).
   log('[phase 2b] qa-script-writer, then qa-hawk explore…');
-  outcomes.push(await runAgent('qa-script-writer', deps, scriptWriterTask(ctx)));
+  // Deterministic DOM probe (option 1): probe the real site here, in plain code, and feed the
+  // ground-truth element inventory into the script-writer's task so it grounds selectors in what
+  // actually exists instead of hallucinating labels/ids/testids. Falls back to no-DOM on failure.
+  let domInventory = '';
+  try {
+    const routes = routesToProbe(ctx.siteMap);
+    domInventory = await probeRoutes(ctx.site, routes);
+    log(domInventory
+      ? `[phase 2b] probed real DOM for script-writer (${routes.join(', ')})`
+      : `[phase 2b] DOM probe returned nothing — script-writer will fall back to its own probe`);
+  } catch (e: any) {
+    log(`[phase 2b] DOM probe skipped (${e.message}) — script-writer falls back to its own probe`);
+  }
+  outcomes.push(await runAgent('qa-script-writer', deps, scriptWriterTask(ctx, domInventory)));
   // hawk's explore pass ran at ~76k tokens in real runs — the global guard is enough
   outcomes.push(await runAgent('qa-hawk', deps, hawkExploreTask(ctx)));
 
   log('[phase 2c] qa-api-tester (probes API, may dispute UI findings)…');
   outcomes.push(await runAgent('qa-api-tester', deps, apiTesterTask(ctx)));
+
+  // ── Phase 2d — focused dispute cross-check (Track-3 reliability) ─────────────
+  // The whole conflict-resolution path hinges on the api-tester calling
+  // raise_dispute. Its prompt mandates a final cross-check, but buried at the tail
+  // of a long endpoint battery the model sometimes skips it. If it raised zero
+  // disputes yet OTHER agents filed data/UI bugs it could contradict, give it one
+  // short, clean-context turn dedicated to the cross-check. It still decides
+  // genuinely — it disputes only a real contradiction, otherwise just finishes.
+  if (db.listDisputes().length === 0) {
+    const others = db.listBugs().filter((b) => b.found_by !== 'qa-api-tester');
+    if (others.length > 0) {
+      const bugsBlock = others
+        .map((b) => `  #${b.id} [${b.severity}] (${b.module}) ${b.title} — found by ${b.found_by}\n` +
+          `      oracle: ${(b.oracle || '(none)').replace(/\s+/g, ' ').slice(0, 200)}`)
+        .join('\n');
+      log(`[phase 2d] no disputes raised; running focused cross-check over ${others.length} bug(s) from other agents…`);
+      outcomes.push(await runAgent('qa-api-tester', deps, apiTesterDisputeTask(ctx, bugsBlock), { maxIterations: 8 }));
+    }
+  }
 
   // ── Phase 3 — dispute adjudication (Track-3) ────────────────────────────────
   const open = db.openDisputes();

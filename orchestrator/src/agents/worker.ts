@@ -154,24 +154,85 @@ export function apiTesterTask(ctx: RunContext): string {
   ].join('\n');
 }
 
-export function scriptWriterTask(ctx: RunContext): string {
+/**
+ * Focused dispute cross-check (Track-3 reliability). Run ONLY when the api-tester's
+ * main pass ended with zero disputes but other agents filed data/UI bugs. A short,
+ * clean context — just the other agents' bugs — so the mandatory Step-6 cross-check
+ * is not lost at the tail of a long endpoint battery. The agent still decides
+ * genuinely: it raises a dispute only where its API evidence truly contradicts a
+ * bug as filed, and otherwise just finishes. This does NOT manufacture disputes.
+ */
+export function apiTesterDisputeTask(ctx: RunContext, bugsBlock: string): string {
+  return [
+    `API-TASK | agent: qa-api-tester | mode: dispute cross-check | base URL: ${ctx.site}` +
+      (ctx.apiSpecPath ? ` | spec: qa/${ctx.apiSpecPath}` : ` | spec: qa/openapi.yaml`),
+    `Your endpoint battery is done. This is the MANDATORY final cross-check (Step 6), isolated`,
+    `so nothing is missed. Other agents have filed these bugs:`,
+    ``,
+    bugsBlock,
+    ``,
+    `For EACH bug above that concerns data behaviour (a count, a list, persistence, a`,
+    `delete/create "not working"), reproduce the equivalent API check with http_request`,
+    `(e.g. for a "deleted task still shows" bug: POST a task, DELETE it, then GET the list).`,
+    `Then decide, per bug:`,
+    `  - If the API layer behaves CORRECTLY per spec while the bug as filed blames the API/data`,
+    `    layer (the defect is really elsewhere, e.g. UI refresh), call raise_dispute with your`,
+    `    concrete evidence (method + URL + status + body slice).`,
+    `  - If your evidence CONFIRMS the bug, do nothing — do not re-file it.`,
+    `Only dispute the SAME behaviour with concrete evidence — never a hunch. If nothing`,
+    `genuinely contradicts, reply in plain text that the cross-check found no contradictions.`,
+    `Credentials for authed endpoints:`,
+    credLines(ctx),
+  ].join('\n');
+}
+
+export function scriptWriterTask(ctx: RunContext, domInventory = ''): string {
   const lines = ctx.modules
     .map((m) => `  - ${m}  → read stored cases via tc_list module=${m} → write qa/automation/specs/${m}.spec.ts`)
     .join('\n');
+  // The orchestrator probed the REAL DOM and passes it here (in the task message, which is
+  // never compacted) so selectors are grounded in ground truth, not hallucinated.
+  const domBlock = domInventory
+    ? [
+        ``,
+        `GROUND-TRUTH DOM — probed LIVE from the real site by the orchestrator. These are the`,
+        `ACTUAL elements on each route. Derive EVERY selector from THIS inventory — do NOT invent`,
+        `labels, ids, or data-testids, and do NOT write your own probe (this replaces it):`,
+        domInventory,
+        `SELECTOR RULES (from the inventory above):`,
+        `- Prefer #id, then getByLabel("<exact label text above>"), then getByPlaceholder, then getByText.`,
+        `- A password input has NO textbox role — locate it by #id or its label, never getByRole('textbox').`,
+        `- Match button/label/heading text EXACTLY as shown above (case included).`,
+        `- For authed pages (e.g. /tasks) LOG IN via the auth flow FIRST, then assert page content.`,
+      ].join('\n')
+    : '';
   return [
     `E2E-TASK | agent: qa-script-writer | site: ${ctx.site} | modules (in order):`,
     lines,
     `project: ${ctx.project} | sprint: ${ctx.sprint}`,
     ...siteMapLines(ctx),
-    `Credentials:`,
+    `CREDENTIALS — use these EXACT values in every login step. NEVER invent an email or password`,
+    `(no "user@test.com", no "SecurePass123!"). These are the ONLY accounts that exist; any other`,
+    `login returns HTTP 401 with a generic error:`,
     credLines(ctx),
+    `A SUCCESSFUL login lands on /tasks. To assert a redirect, use waitForURL('**/tasks') OR check`,
+    `page.url().includes('/tasks') — NEVER waitForURL('/tasks'): a bare path does not match the full`,
+    `URL (e.g. http://host:3000/tasks) and will time out even though the navigation succeeded.`,
+    `This app has NO forgot-password flow, NO field-level validation messages, and NO`,
+    `password-strength rules — if a stored test case asserts such a feature or any specific error`,
+    `text, that feature does NOT exist here: record the case BLOCKED with a short note ("feature`,
+    `not present in app") instead of asserting invented UI text. Do not fabricate selectors or`,
+    `messages for features you cannot see in the GROUND-TRUTH DOM below.`,
+    domBlock,
     `DELIVERABLE CONTRACT (non-negotiable): result_record calls are your PRIMARY deliverable —`,
     `finishing with zero result_record calls fails the whole run, a protocol violation.`,
-    `Per module, in this exact order: one probe → ONE flat spec via the shared runner (selectors`,
-    `and expected text inline — SKIP the locators/pages/data tier files) → playwright_run →`,
-    `IMMEDIATELY result_record EVERY case in that spec exactly as observed (PASS/FAIL/BLOCKED),`,
-    `BEFORE any repair. Only then: at most 2 repair cycles, re-record only outcomes that changed,`,
-    `SECTION-DONE, next module. An honest recorded FAIL beats an unrecorded clean run.`,
+    `Per module, in this exact order: ONE flat spec via the shared runner (selectors from the`,
+    `GROUND-TRUTH DOM above, expected text inline — SKIP the locators/pages/data tier files) →`,
+    `playwright_run → IMMEDIATELY result_record EVERY case in that spec exactly as observed`,
+    `(PASS/FAIL/BLOCKED), BEFORE any repair. Only then: at most 2 repair cycles, re-record only`,
+    `outcomes that changed, SECTION-DONE, next module. An honest recorded FAIL beats an unrecorded`,
+    `clean run — but a FAIL caused by a selector you invented instead of using the DOM above is your`,
+    `own bug: fix it against the inventory, never file it as a product defect.`,
   ].join('\n');
 }
 

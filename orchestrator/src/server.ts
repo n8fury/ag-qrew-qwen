@@ -89,6 +89,10 @@ app.post('/api/run', (req: Request, res: Response) => {
   if (running) { res.status(409).json({ ok: false, error: 'a run is already in progress' }); return; }
   running = true;
 
+  // fresh store per run — the dashboard reads all rows unfiltered, so clear the
+  // previous run's cases/bugs/disputes/results before a new one starts.
+  db.reset();
+
   // fresh bus per run so the session is clean; re-wire SSE to it.
   bus.off('signal', broadcast);
   bus = new Bus(config.busPath, `web-${new Date().toISOString().replace(/[:.]/g, '-')}`);

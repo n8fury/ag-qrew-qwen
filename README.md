@@ -193,14 +193,65 @@ A pipeline that provably finds 4/4 known bugs is a stronger demo than one pointe
 
 ---
 
+## Will it work on *your* app? (generality & why a demo app)
+
+**Short answer:** the *engine* is app-agnostic; the *inputs* currently ship wired to the demo. Pointing it
+at a real app is a config change, not a rewrite — but with honest caveats below.
+
+### What's generic vs. what's hardcoded
+
+Nothing in the runtime (`AgentLoop`, tools, bus, adjudication, sign-off) knows anything about a task
+manager. The entire app-under-test is described by one object, `RunContext` (see [`cli.ts`](orchestrator/src/cli.ts)):
+
+| Input | Today | To target a real app |
+|---|---|---|
+| `site` (URL under test) | ✅ `--site <url>` | pass your URL |
+| `specPath` (OpenAPI) | ✅ `--spec <path>` | pass your spec |
+| `docText` (requirements / release notes — **the QA Lead plans entirely from this**) | ❌ hardcoded `DEMO_DOC` | wire to `--doc` / config |
+| `creds` (login) | ❌ hardcoded demo creds | wire to `--creds` / config |
+| `modules` (e.g. `auth`, `tasks`) | ❌ hardcoded | wire to `--modules` / config |
+| `siteMap` (where things live) | ❌ hardcoded | wire to config |
+
+Feed a different `RunContext` and the same five agents plan, write cases, explore, API-test, dispute,
+and sign off on any app. Generalizing the four hardcoded fields is ~an hour of plumbing (flags or a
+`run.config.json`), with no change to the agent runtime.
+
+> ⚠️ Running `--site https://yourapp.com --spec ./your.yaml` **today** would test your app but still
+> plan against the *demo's* requirements and log in with *demo* credentials → meaningless output.
+> The requirements doc must match the app. Wiring `--doc`/`--creds`/`--modules` is the missing step.
+
+### Why we built a demo app instead of pointing at a real site
+
+1. **Ground truth.** With exactly 4 documented planted bugs, "found 4/4" is a *provable* claim. On a
+   random production site there's no oracle — you can't prove the society found anything real, only that
+   it emitted findings.
+2. **Reproducible for judges.** One command, no external accounts, same result every run.
+3. **It exercises the differentiator on purpose.** Planted bug #4 is engineered to force the
+   qa-hawk ↔ qa-api-tester dispute, so the conflict-resolution path is demonstrated live, not hoped for.
+
+### Honest real-world caveats
+
+- **Cost/time scales hard.** Two modules on this tiny app cost ~618k tokens / ~25 min, and the
+  script-writer still hit its per-agent token cap. Real apps (more modules, real auth, SPA routing,
+  dynamic content) will multiply this and trip the budget guards more often.
+- **Precision becomes the whole game.** Even here the society shipped 2 false-positive Criticals
+  (XSS/SQLi — see the metrics table). Without ground truth, false-positive discipline matters far more.
+- **Selector fragility.** Generating Playwright selectors from snapshots works on a simple DOM; complex
+  real UIs are harder.
+
+**The honest pitch:** a reusable multi-agent QA *runtime*, demonstrated on a controlled app with known
+bugs so the results are verifiable — not a plug-and-play tester for arbitrary production apps (yet).
+
+---
+
 ## Repo structure
 
 ```
 ag-qrew-qwen/
 ├── README.md · LICENSE · .env.example · docker-compose.yml
-├── docs/                   # ALL project docs: architecture.md (+ diagram PNG) · signals.md ·
+├── docs/                   # project docs: architecture.md (+ diagram PNG) · signals.md ·
 │                           #   scope-decisions.md · ecs-setup.md (click-by-click Alibaba Cloud) ·
-│                           #   PLANTED_BUGS.md · HANDOFF.md · UPGRADE_PLAN.md · EXECUTION_PLAN.md
+│                           #   PLANTED_BUGS.md · sample-run/ (a full committed society run)
 ├── deploy/                 # deploy.sh (one-shot compose deploy)
 ├── dashboard/              # React dashboard (Vite) — dist/ committed, served by server.ts
 ├── orchestrator/           # + Dockerfile
@@ -270,8 +321,6 @@ one command and no external accounts (they remain documentable as pluggable adap
 - ✅ React dashboard (test-case browser, dispute/adjudication badges, live SSE feed, sign-off view) + inline fallback.
 - ✅ Docker Compose (full society run verified inside compose), architecture diagram (PNG), deploy scripts.
 - ⏳ Alibaba Cloud ECS deployment + proof recording.
-
-See [docs/HANDOFF.md](docs/HANDOFF.md) for the exact state and remaining tasks.
 
 ## License
 
