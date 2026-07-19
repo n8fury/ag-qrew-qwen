@@ -4,6 +4,7 @@ import { createInterface } from 'node:readline/promises';
 import { runSociety } from './agents/qaLead.js';
 import { runSingle } from './baseline/singleAgent.js';
 import { config } from './config.js';
+import { demoContext } from './demoPreset.js';
 import type { RunContext } from './agents/worker.js';
 
 /**
@@ -21,41 +22,17 @@ function arg(name: string, fallback?: string): string | undefined {
 }
 const flag = (name: string) => process.argv.includes(`--${name}`);
 
-const DEMO_DOC = `Sprint 1 — Demo Task Manager
-Release notes:
-- Users can sign in with email + password (roles: admin, standard user).
-- Authenticated users can list, create, update, and delete tasks.
-- A task has a title (required, max 200 characters) and a done flag.
-- Creating a task with a missing or over-length title must be rejected with a 400 error.
-- The tasks page must always show the current list of tasks with an accurate count.
-Entry points:
-- The sign-in page is the root page (/). There is no separate /login route.
-- The tasks page is served at /tasks.
-- The REST API is rooted at /api (auth: POST /api/auth/login) — see the OpenAPI spec.`;
-
-const DEMO_SITE_MAP =
-  'login UI = / (root page, email+password form) · tasks UI = /tasks · REST API under /api per the OpenAPI spec (auth: POST /api/auth/login)';
-
-function demoContext(): { ctx: RunContext; specPath: string } {
+function demoRun(): { ctx: RunContext; specPath: string } {
   const specPath = fileURLToPath(new URL('../../demo-app/openapi.yaml', import.meta.url));
-  const ctx: RunContext = {
-    project: 'Demo Task Manager',
-    sprint: 1,
-    site: arg('site', config.demoAppUrl)!,
-    modules: ['auth', 'tasks'],
-    creds: {
-      adminEmail: 'admin@demo.test', adminPassword: 'admin123',
-      userEmail: 'user@demo.test', userPassword: 'user123',
-    },
-    docText: DEMO_DOC,
-    siteMap: DEMO_SITE_MAP,
+  return {
+    ctx: demoContext(arg('site', config.demoAppUrl)!),
+    specPath: arg('spec', specPath)!,
   };
-  return { ctx, specPath: arg('spec', specPath)! };
 }
 
 async function main() {
   const mode = (arg('mode', 'society') as 'society' | 'single');
-  const { ctx, specPath } = demoContext();
+  const { ctx, specPath } = demoRun();
   const externalSpecPath = existsSync(specPath) ? specPath : undefined;
   if (!externalSpecPath) console.warn(`[warn] spec not found at ${specPath} — qa-api-tester will look for qa/openapi.yaml.`);
 

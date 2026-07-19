@@ -65,7 +65,7 @@ export async function runSingle(ctx: RunContext, opts: SingleOptions = {}): Prom
   const log = opts.log ?? ((m: string) => console.log(m));
   const qaRoot = resolve(dirname(config.busPath));
   if (!existsSync(qaRoot)) mkdirSync(qaRoot, { recursive: true });
-  process.env.SITE_URL = ctx.site;   // specs run by playwright_run read this
+  if (ctx.site) process.env.SITE_URL = ctx.site;   // specs run by playwright_run read this
 
   const session = opts.session ?? `single-${new Date().toISOString().replace(/[:.]/g, '-')}`;
   const bus = opts.bus ?? new Bus(config.busPath, session);

@@ -26,6 +26,7 @@ node_modules/
 Thumbs.db
 
 # Internal working docs — kept on disk, out of the public repo
+plan-general-inputs.md
 docs/AG-QREW-QWEN-PLAN.pdf
 docs/HANDOFF.md
 docs/DAY4_CHECKLIST.md

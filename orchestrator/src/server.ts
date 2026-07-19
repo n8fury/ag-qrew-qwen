@@ -8,6 +8,7 @@ import { DB } from './db.js';
 import { runSociety } from './agents/qaLead.js';
 import type { RunContext } from './agents/worker.js';
 import { tokenGuard, validateRunContext } from './security.js';
+import { demoContext } from './demoPreset.js';
 
 /**
  * Server (plan task 8) — Express + SSE. Streams the signal bus live, exposes the
@@ -138,9 +139,11 @@ app.post('/api/run', tokenGuard, (req: Request, res: Response) => {
 
   // A client-supplied ctx must pass shape + site-URL policy (http(s) only, no
   // metadata/link-local hosts) — without this, /api/run is an SSRF proxy.
+  // The bundled demo spec counts as the spec input for the ≥1-input rule.
+  const specPath = fileURLToPath(new URL('../../demo-app/openapi.yaml', import.meta.url));
   let suppliedCtx: RunContext | undefined;
   if (req.body?.ctx !== undefined) {
-    const v = validateRunContext(req.body.ctx);
+    const v = validateRunContext(req.body.ctx, existsSync(specPath));
     if (!v.ok) { res.status(400).json({ ok: false, error: `invalid ctx — ${v.error}` }); return; }
     suppliedCtx = v.ctx;
   }
@@ -155,14 +158,7 @@ app.post('/api/run', tokenGuard, (req: Request, res: Response) => {
   bus = new Bus(config.busPath, `web-${new Date().toISOString().replace(/[:.]/g, '-')}`);
   bus.on('signal', broadcast);
 
-  const specPath = fileURLToPath(new URL('../../demo-app/openapi.yaml', import.meta.url));
-  const ctx: RunContext = suppliedCtx ?? {
-    project: 'Demo Task Manager', sprint: 1, site: config.demoAppUrl,
-    modules: ['auth', 'tasks'],
-    creds: { adminEmail: 'admin@demo.test', adminPassword: 'admin123', userEmail: 'user@demo.test', userPassword: 'user123' },
-    docText: 'Sprint 1 — Demo Task Manager: login + task CRUD; title required, max 200 chars; over-length/missing title → 400. Entry points: sign-in page is the root page (/), tasks page at /tasks, REST API under /api (auth: POST /api/auth/login).',
-    siteMap: 'login UI = / (root page, email+password form) · tasks UI = /tasks · REST API under /api per the OpenAPI spec (auth: POST /api/auth/login)',
-  };
+  const ctx: RunContext = suppliedCtx ?? demoContext(config.demoAppUrl);
 
   runSociety(ctx, {
     db, bus,

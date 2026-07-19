@@ -66,24 +66,10 @@ export interface SocietyResult {
 
 const noop = () => {};
 
-/**
- * The fixed pipeline segments the dashboard progress bar renders. One PHASE
- * signal marks the START of each; the conditional 2d cross-check folds into
- * `api` so the total never changes mid-run (a bar with a moving total reads
- * as a bug). Mirrored client-side in dashboard/src/components/ProgressBar.tsx.
- */
-export const PHASES = [
-  { id: 'env', label: 'Environment gate' },
-  { id: 'plan', label: 'Test plan' },
-  { id: 'approval', label: 'Approval checkpoint' },
-  { id: 'cases', label: 'Test cases' },
-  { id: 'scripts', label: 'E2E scripts' },
-  { id: 'explore', label: 'Exploratory' },
-  { id: 'api', label: 'API tests' },
-  { id: 'adjudicate', label: 'Adjudication' },
-  { id: 'signoff', label: 'Sign-off' },
-] as const;
-export type PhaseId = (typeof PHASES)[number]['id'];
+// PHASES/PhaseId moved to ../mode.ts (single source of truth alongside detectMode);
+// re-exported here so existing importers keep working.
+import { PHASES, type PhaseId } from '../mode.js';
+export { PHASES, type PhaseId };
 
 export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Promise<SocietyResult> {
   const log = opts.log ?? ((m: string) => console.log(m));
@@ -95,7 +81,7 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
 
   // Make the site URL visible to specs that playwright_run executes as child
   // processes — they read process.env.SITE_URL and inherit this env.
-  process.env.SITE_URL = ctx.site;
+  if (ctx.site) process.env.SITE_URL = ctx.site;
 
   const session = opts.session ?? `society-${new Date().toISOString().replace(/[:.]/g, '-')}`;
   const bus = opts.bus ?? new Bus(config.busPath, session);
@@ -173,7 +159,7 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
   let domInventory = '';
   try {
     const routes = routesToProbe(ctx.siteMap);
-    domInventory = await probeRoutes(ctx.site, routes);
+    domInventory = ctx.site ? await probeRoutes(ctx.site, routes) : '';
     log(domInventory
       ? `[phase 2b] probed real DOM for script-writer (${routes.join(', ')})`
       : `[phase 2b] DOM probe returned nothing — script-writer will fall back to its own probe`);

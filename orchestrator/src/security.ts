@@ -46,7 +46,9 @@ const siteUrl = z.string().superRefine((val, ctx2) => {
 export const RunContextSchema = z.object({
   project: z.string().min(1).max(200),
   sprint: z.number().int().positive(),
-  site: siteUrl,
+  // site and docText are OPTIONAL since general-input runs: any subset of
+  // (site, docText, spec) ≥ 1 describes a run — see validateRunContext.
+  site: siteUrl.optional(),
   apiSpecPath: z.string().max(500).optional(),
   modules: z.array(z.string().min(1).max(100)).min(1).max(20),
   creds: z.object({
@@ -55,18 +57,33 @@ export const RunContextSchema = z.object({
     userEmail: z.string().max(200).optional(),
     userPassword: z.string().max(200).optional(),
   }).optional(),
-  docText: z.string().min(1).max(50_000),
+  docText: z.string().min(1).max(50_000).optional(),
   siteMap: z.string().max(5_000).optional(),
+  appNotes: z.string().max(10_000).optional(),
+  priorityOracles: z.object({
+    api: z.string().max(5_000).optional(),
+    explore: z.string().max(5_000).optional(),
+  }).optional(),
 });
 
 export type ValidatedCtx = { ok: true; ctx: RunContext } | { ok: false; error: string };
 
-/** Validate a client-supplied RunContext (unknown keys are stripped by zod). */
-export function validateRunContext(input: unknown): ValidatedCtx {
+/**
+ * Validate a client-supplied RunContext (unknown keys are stripped by zod).
+ * `specProvided` counts as the third possible input: a ctx with neither site
+ * nor docText is only runnable when an OpenAPI spec is present.
+ */
+export function validateRunContext(input: unknown, specProvided = false): ValidatedCtx {
   const res = RunContextSchema.safeParse(input);
   if (!res.success) {
     const error = res.error.issues.map((i) => `${i.path.join('.') || 'ctx'}: ${i.message}`).join('; ');
     return { ok: false, error };
+  }
+  if (!res.data.site && !res.data.docText && !specProvided) {
+    return {
+      ok: false,
+      error: 'ctx: at least one input is required — a target URL (site), a requirements document (docText), or an OpenAPI spec',
+    };
   }
   return { ok: true, ctx: res.data };
 }

@@ -71,12 +71,18 @@ export function runAgent(
 export interface RunContext {
   project: string;
   sprint: number;
-  site: string;
+  /** Target URL. Optional — a run without it is design-only (no execution phases). */
+  site?: string;
   apiSpecPath?: string;   // path under qa/, e.g. "openapi.yaml"
   modules: string[];
   creds?: { adminEmail?: string; adminPassword?: string; userEmail?: string; userPassword?: string };
-  docText: string;        // the source requirements / release note for the test plan
+  /** Requirements / release notes. Optional — without it the plan derives from the spec / exploration. */
+  docText?: string;
   siteMap?: string;       // documented UI entry points, so reachability is judged against real routes
+  /** App-specific guidance for E2E scripting (redirects, known-absent features). Target-supplied. */
+  appNotes?: string;
+  /** Must-check claims from the requirements, scoped per consumer agent. Target-supplied. */
+  priorityOracles?: { api?: string; explore?: string };
 }
 
 function credLines(ctx: RunContext): string {
@@ -88,19 +94,19 @@ function credLines(ctx: RunContext): string {
 }
 
 export function metaPayload(ctx: RunContext): string {
-  return `project_name=${ctx.project} | sprint=${ctx.sprint} | site=${ctx.site}` +
+  return `project_name=${ctx.project} | sprint=${ctx.sprint} | site=${ctx.site ?? '(none)'}` +
     (ctx.apiSpecPath ? ` | api_spec=qa/${ctx.apiSpecPath}` : '');
 }
 
 export function testPlanTask(ctx: RunContext): string {
   return [
     `Write the test plan for the following. Mode 1.`,
-    `project: ${ctx.project} | sprint: ${ctx.sprint} | site URL: ${ctx.site}`,
+    `project: ${ctx.project} | sprint: ${ctx.sprint} | site URL: ${ctx.site ?? '(no target URL — plan from the documents alone)'}`,
     ctx.apiSpecPath ? `API spec: qa/${ctx.apiSpecPath}` : `API spec: none provided`,
     `In-scope modules: ${ctx.modules.join(', ')}`,
     ``,
     `SOURCE DOCUMENT:`,
-    ctx.docText,
+    ctx.docText ?? `(no requirements document provided — derive the plan from the API spec under qa/ and the module list above)`,
   ].join('\n');
 }
 
@@ -111,7 +117,7 @@ function siteMapLines(ctx: RunContext): string[] {
 export function hawkEnvTask(ctx: RunContext): string {
   return [
     // NB: no test-plan reference — the plan is written in Phase 1, AFTER this gate runs.
-    `HAWK-TASK | mode: environment | site: ${ctx.site}`,
+    `HAWK-TASK | mode: environment | site: ${ctx.site ?? '(no target URL provided)'}`,
     `The test plan does not exist yet (you run before it is written) — validate the environment from this task alone.`,
     `In-scope modules to reach: ${ctx.modules.join(', ')}`,
     ...siteMapLines(ctx),
@@ -123,7 +129,7 @@ export function hawkEnvTask(ctx: RunContext): string {
 export function tcWriterTask(ctx: RunContext): string {
   return [
     `Write test cases for these modules (in order): ${ctx.modules.join(', ')}`,
-    `project: ${ctx.project} | sprint: ${ctx.sprint} | site: ${ctx.site}`,
+    `project: ${ctx.project} | sprint: ${ctx.sprint} | site: ${ctx.site ?? '(no target URL — write cases from the plan alone)'}`,
     `Read the SFDIPOT coverage map and expected results from qa/test-plan-sprint${ctx.sprint}.txt (fs_read it).`,
     `DELIVERABLE CONTRACT (non-negotiable): for EACH module you MUST call tc_store exactly once`,
     `with 6-8 focused cases (happy path, key negatives, one boundary each) BEFORE you finish.`,
@@ -134,19 +140,17 @@ export function tcWriterTask(ctx: RunContext): string {
 
 export function apiTesterTask(ctx: RunContext): string {
   return [
-    `API-TASK | agent: qa-api-tester | base URL: ${ctx.site}` +
+    `API-TASK | agent: qa-api-tester | base URL: ${ctx.site ?? '(no target URL provided)'}` +
       (ctx.apiSpecPath ? ` | spec: qa/${ctx.apiSpecPath}` : ` | spec: qa/openapi.yaml`),
     `project: ${ctx.project} | sprint: ${ctx.sprint}`,
     `Credentials for authed endpoints:`,
     credLines(ctx),
     `Test ONLY the (method, path) pairs documented in the spec — a 404 from an undocumented`,
     `path is correct behaviour, never a bug. Every bug's oracle must QUOTE the spec line violated.`,
-    `PRIORITY CHECKS straight from the release notes ("Creating a task with a missing or`,
-    `over-length title must be rejected with a 400 error") — run these FIRST, before anything else:`,
-    `(1) POST /api/tasks with NO title (authed) — expect 400; READ THE BODY of whatever comes back;`,
-    `(2) POST /api/tasks with a 201-character title (authed) — expect 400 per the spec's maxLength: 200;`,
-    `(3) POST /api/tasks with no Authorization header — expect 401.`,
-    `File a bug immediately for each mismatch, then continue the full battery.`,
+    ...(ctx.priorityOracles?.api
+      ? [`PRIORITY CHECKS straight from the requirements — run these FIRST, before anything else:`,
+         ctx.priorityOracles.api]
+      : []),
     `MANDATORY FINAL STEP before your DONE signal: bus_read all BUG-FILED signals; for each`,
     `UI bug about data (count, list, persistence, delete/create "not working"), reproduce the`,
     `equivalent API check; raise_dispute with your evidence wherever the API layer behaves`,
@@ -207,7 +211,7 @@ export function scriptWriterTask(ctx: RunContext, domInventory = ''): string {
       ].join('\n')
     : '';
   return [
-    `E2E-TASK | agent: qa-script-writer | site: ${ctx.site} | modules (in order):`,
+    `E2E-TASK | agent: qa-script-writer | site: ${ctx.site ?? '(no target URL provided)'} | modules (in order):`,
     lines,
     `project: ${ctx.project} | sprint: ${ctx.sprint}`,
     ...siteMapLines(ctx),
@@ -215,14 +219,11 @@ export function scriptWriterTask(ctx: RunContext, domInventory = ''): string {
     `(no "user@test.com", no "SecurePass123!"). These are the ONLY accounts that exist; any other`,
     `login returns HTTP 401 with a generic error:`,
     credLines(ctx),
-    `A SUCCESSFUL login lands on /tasks. To assert a redirect, use waitForURL('**/tasks') OR check`,
-    `page.url().includes('/tasks') — NEVER waitForURL('/tasks'): a bare path does not match the full`,
-    `URL (e.g. http://host:3000/tasks) and will time out even though the navigation succeeded.`,
-    `This app has NO forgot-password flow, NO field-level validation messages, and NO`,
-    `password-strength rules — if a stored test case asserts such a feature or any specific error`,
-    `text, that feature does NOT exist here: record the case BLOCKED with a short note ("feature`,
-    `not present in app") instead of asserting invented UI text. Do not fabricate selectors or`,
-    `messages for features you cannot see in the GROUND-TRUTH DOM below.`,
+    ...(ctx.appNotes
+      ? [`APP NOTES — verified behaviour of THIS app; trust these over anything a stored case asserts:`,
+         ctx.appNotes]
+      : []),
+    `Do not fabricate selectors or messages for features you cannot observe.`,
     domBlock,
     `DELIVERABLE CONTRACT (non-negotiable): result_record calls are your PRIMARY deliverable —`,
     `finishing with zero result_record calls fails the whole run, a protocol violation.`,
@@ -237,31 +238,28 @@ export function scriptWriterTask(ctx: RunContext, domInventory = ''): string {
 }
 
 export function hawkExploreTask(ctx: RunContext): string {
+  const oracles = ctx.priorityOracles?.explore;
   return [
-    `HAWK-TASK | mode: explore | modules: ${ctx.modules.join(', ')} | site: ${ctx.site}`,
+    `HAWK-TASK | mode: explore | modules: ${ctx.modules.join(', ')} | site: ${ctx.site ?? '(no target URL provided)'}`,
     `project: ${ctx.project} | sprint: ${ctx.sprint}`,
     ...siteMapLines(ctx),
     `Smoke each module first; on smoke pass, run risk-based exploratory testing (SFDIPOT + FEW HICCUPPS).`,
     `Read stored cases with tc_list; read the SFDIPOT map from qa/test-plan-sprint${ctx.sprint}.txt.`,
-    `PRIORITY ORACLES straight from the requirements doc — check these FIRST and file bugs immediately:`,
-    `(1) browser_snapshot the tasks page and read its H2 heading VERBATIM from the vision transcript —`,
-    `    the requirements demand an accurate task count in the header (e.g. "Tasks (3)"). If the heading`,
-    `    shows anything that is not the true number — the wrong number, or a non-value like "undefined" —`,
-    `    that is a bug: file it immediately, quoting the heading text exactly;`,
-    `(2) DELETE staleness — run this exact sequence, do not skip the DELETE leg:`,
-    `    a. POST /api/tasks to create a task (note its id), b. DELETE /api/tasks/{id} via the API,`,
-    `    c. GET /api/tasks AND browser_snapshot /tasks — the requirements say the tasks page`,
-    `    "must always show the current list of tasks"; if the page still shows the deleted task`,
-    `    while the API list omits it, that is a bug (file it with both pieces of evidence).`,
-    `    (Create-then-recheck alone is NOT enough — the delete leg is where refresh defects hide.)`,
+    ...(oracles
+      ? [`PRIORITY ORACLES straight from the requirements doc — check these FIRST and file bugs immediately:`,
+         oracles]
+      : []),
     `Budget: browser_snapshot is expensive — use it at most 4 times; bug_file the moment evidence`,
     `is in hand; raise_dispute when your UI evidence contradicts recorded API behaviour (or vice versa).`,
-    `DELIVERABLE CONTRACT (non-negotiable) — your SECTION-DONE for the tasks module is INVALID unless`,
-    `BOTH happened: (a) the full DELETE staleness sequence above was executed and its outcome is on`,
-    `record — either a filed bug (page still shows the deleted task) or an explicit "delete refresh`,
-    `clean" line in your report; filing the count-header bug does NOT satisfy this — they are two`,
-    `separate priority oracles; (b) you called result_record for every stored case (tc_list row ids)`,
-    `you could evaluate with your tools — a module with zero recorded results is a protocol violation.`,
+    ...(oracles
+      ? [`DELIVERABLE CONTRACT (non-negotiable) — your SECTION-DONE for a module is INVALID unless BOTH`,
+         `happened: (a) EVERY priority oracle above was executed and its outcome is on record — either a`,
+         `filed bug or an explicit "clean" line in your report (each oracle is separate; a bug filed for`,
+         `one never covers another); (b) you called result_record for every stored case (tc_list row ids)`,
+         `you could evaluate with your tools — a module with zero recorded results is a protocol violation.`]
+      : [`DELIVERABLE CONTRACT (non-negotiable): you MUST call result_record for every stored case`,
+         `(tc_list row ids) you could evaluate with your tools — a module with zero recorded results is a`,
+         `protocol violation.`]),
     `Credentials:`,
     credLines(ctx),
   ].join('\n');

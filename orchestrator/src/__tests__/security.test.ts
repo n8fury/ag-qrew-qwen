@@ -38,10 +38,34 @@ describe('validateRunContext', () => {
     expect(g.ok).toBe(false);
   });
 
-  it('rejects a malformed shape (missing modules / docText)', () => {
+  it('rejects a malformed shape (missing modules / empty docText)', () => {
     expect(validateRunContext({ ...goodCtx, modules: [] }).ok).toBe(false);
     expect(validateRunContext({ ...goodCtx, docText: '' }).ok).toBe(false);
     expect(validateRunContext('not an object').ok).toBe(false);
+  });
+
+  it('accepts any single input: site-only, doc-only, or spec-only', () => {
+    const base = { project: 'P', sprint: 1, modules: ['m'] };
+    expect(validateRunContext({ ...base, site: 'http://localhost:3000' }).ok).toBe(true);
+    expect(validateRunContext({ ...base, docText: 'requirements' }).ok).toBe(true);
+    expect(validateRunContext(base, true).ok).toBe(true); // spec provided out-of-band
+  });
+
+  it('rejects a ctx with no inputs at all, naming the three accepted sources', () => {
+    const v = validateRunContext({ project: 'P', sprint: 1, modules: ['m'] });
+    expect(v.ok).toBe(false);
+    if (!v.ok) expect(v.error).toMatch(/target URL.*requirements.*OpenAPI spec/);
+  });
+
+  it('accepts the new appNotes and priorityOracles fields (bounded)', () => {
+    const v = validateRunContext({
+      ...goodCtx,
+      appNotes: 'login lands on /home',
+      priorityOracles: { api: 'POST /x → 400', explore: 'check the header count' },
+    });
+    expect(v.ok).toBe(true);
+    if (v.ok) expect(v.ctx.priorityOracles?.api).toBe('POST /x → 400');
+    expect(validateRunContext({ ...goodCtx, appNotes: 'x'.repeat(10_001) }).ok).toBe(false);
   });
 });
 
