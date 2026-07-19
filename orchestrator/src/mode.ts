@@ -70,6 +70,18 @@ export function isExecutionMode(modeId: ModeId): boolean {
   return modeId === 'full' || modeId === 'execution' || modeId === 'contract-explore' || modeId === 'explore';
 }
 
+/** The slice of a RunMode the dashboard progress bar needs from /api/state (C.3). */
+export interface ModeState { modeId: ModeId; label: string; phases: PhaseId[]; }
+
+/**
+ * Project a RunMode down to what /api/state serves — or null when no run is
+ * active (server just (re)started). A null mode means the bar falls back to the
+ * all-active (all-9-segments) rendering, since the mode was never persisted.
+ */
+export function modeState(m: RunMode | null): ModeState | null {
+  return m ? { modeId: m.modeId, label: m.label, phases: m.phases } : null;
+}
+
 export function detectMode(inputs: ModeInputs): RunMode {
   const site = Boolean(inputs.site);
   const doc = Boolean(inputs.docText);

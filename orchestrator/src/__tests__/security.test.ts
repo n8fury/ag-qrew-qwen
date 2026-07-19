@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { NextFunction, Request, Response } from 'express';
-import { deniedHost, tokenGuard, validateRunContext } from '../security.js';
+import { acceptSpecYaml, deniedHost, tokenGuard, validateRunContext } from '../security.js';
 
 const goodCtx = {
   project: 'Demo Task Manager', sprint: 1, site: 'http://localhost:3000',
@@ -54,7 +54,19 @@ describe('validateRunContext', () => {
   it('rejects a ctx with no inputs at all, naming the three accepted sources', () => {
     const v = validateRunContext({ project: 'P', sprint: 1, modules: ['m'] });
     expect(v.ok).toBe(false);
-    if (!v.ok) expect(v.error).toMatch(/target URL.*requirements.*OpenAPI spec/);
+    if (!v.ok) {
+      expect(v.error).toMatch(/target URL.*requirements.*OpenAPI spec/);
+      expect(v.fieldErrors.ctx).toMatch(/target URL/); // field-level for the dashboard
+    }
+  });
+
+  it('reports field-level errors keyed by path (for inline dashboard display)', () => {
+    const v = validateRunContext({ ...goodCtx, site: 'file:///etc/passwd', modules: [] });
+    expect(v.ok).toBe(false);
+    if (!v.ok) {
+      expect(v.fieldErrors.site).toMatch(/http\(s\)/);
+      expect(v.fieldErrors.modules).toBeTruthy();
+    }
   });
 
   it('accepts the new appNotes and priorityOracles fields (bounded)', () => {
@@ -66,6 +78,52 @@ describe('validateRunContext', () => {
     expect(v.ok).toBe(true);
     if (v.ok) expect(v.ctx.priorityOracles?.api).toBe('POST /x → 400');
     expect(validateRunContext({ ...goodCtx, appNotes: 'x'.repeat(10_001) }).ok).toBe(false);
+  });
+});
+
+describe('acceptSpecYaml (uploaded OpenAPI spec gate — Phase C.2)', () => {
+  const VALID_SPEC = `openapi: 3.0.0
+info:
+  title: Demo Task Manager
+  version: 1.0.0
+paths:
+  /api/tasks:
+    get:
+      responses:
+        '200':
+          description: ok
+    post:
+      responses:
+        '400':
+          description: bad
+`;
+
+  it('accepts a block-style spec that documents at least one path', () => {
+    const r = acceptSpecYaml(VALID_SPEC);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.text).toBe(VALID_SPEC);
+  });
+
+  it('rejects a non-string or empty body', () => {
+    expect(acceptSpecYaml(undefined).ok).toBe(false);
+    expect(acceptSpecYaml(123).ok).toBe(false);
+    expect(acceptSpecYaml('   ').ok).toBe(false);
+  });
+
+  it('rejects garbage and empty-paths YAML (no documented paths)', () => {
+    const garbage = acceptSpecYaml('this is not a spec {{{ nonsense');
+    expect(garbage.ok).toBe(false);
+    if (!garbage.ok) expect(garbage.error).toMatch(/no paths/i);
+
+    const emptyPaths = acceptSpecYaml('openapi: 3.0.0\ninfo:\n  title: X\n  version: 1.0.0\npaths:\n');
+    expect(emptyPaths.ok).toBe(false);
+  });
+
+  it('rejects a spec over the 1 MB limit', () => {
+    const huge = VALID_SPEC + '\n' + '#'.repeat(1_000_001); // valid head, >1 MB total
+    const r = acceptSpecYaml(huge);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/1 MB/);
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectMode, isExecutionMode, NoInputsError, PHASES } from '../mode.js';
+import { detectMode, isExecutionMode, modeState, NoInputsError, PHASES } from '../mode.js';
 
 const SITE = 'http://localhost:3000';
 const DOC = 'Sprint 1 — release notes.';
@@ -54,6 +54,21 @@ describe('detectMode — the full input matrix', () => {
       expect(isExecutionMode(m.modeId)).toBe(true);
       expect(m.phases[0]).toBe('env');
       expect(m.phases.includes('api')).toBe(Boolean(inputs.spec));
+    }
+  });
+});
+
+describe('modeState — the /api/state slice (Phase C.3)', () => {
+  it('null passes through (server restarted → all-active fallback)', () => {
+    expect(modeState(null)).toBeNull();
+  });
+
+  it('projects a RunMode down to { modeId, label, phases } only', () => {
+    const m = detectMode({ docText: DOC });
+    expect(modeState(m)).toEqual({ modeId: 'design', label: m.label, phases: m.phases });
+    // the heavier card fields (willDo/wontDo/unlocks/detected) are NOT in the state slice
+    for (const k of ['willDo', 'wontDo', 'unlocks', 'detected']) {
+      expect(modeState(m)).not.toHaveProperty(k);
     }
   });
 });

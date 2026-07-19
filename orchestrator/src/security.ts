@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { NextFunction, Request, Response } from 'express';
 import type { RunContext } from './agents/worker.js';
+import { parseSpecPaths } from './tools/store.js';
 
 /**
  * Server-side input validation + optional auth for the control API.
@@ -24,23 +25,30 @@ export function deniedHost(hostname: string): string | null {
   return null;
 }
 
-/** http(s) URL whose host passes the deny-list. */
-const siteUrl = z.string().superRefine((val, ctx2) => {
+/**
+ * Returns an error message if `val` is not an http(s) URL whose host passes the
+ * deny-list, else null. Shared by the RunContext schema and the /api/preview
+ * endpoint (Phase C) so the site policy lives in exactly one place.
+ */
+export function siteUrlError(val: string): string | null {
   let url: URL;
   try {
     url = new URL(val);
   } catch {
-    ctx2.addIssue({ code: z.ZodIssueCode.custom, message: `site must be a valid URL, got "${val}"` });
-    return;
+    return `site must be a valid URL, got "${val}"`;
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    ctx2.addIssue({ code: z.ZodIssueCode.custom, message: `site must be http(s), got ${url.protocol}//` });
-    return;
+    return `site must be http(s), got ${url.protocol}//`;
   }
   const denied = deniedHost(url.hostname);
-  if (denied) {
-    ctx2.addIssue({ code: z.ZodIssueCode.custom, message: `site host ${url.hostname} is not allowed: ${denied}` });
-  }
+  if (denied) return `site host ${url.hostname} is not allowed: ${denied}`;
+  return null;
+}
+
+/** http(s) URL whose host passes the deny-list. */
+const siteUrl = z.string().superRefine((val, ctx2) => {
+  const err = siteUrlError(val);
+  if (err) ctx2.addIssue({ code: z.ZodIssueCode.custom, message: err });
 });
 
 export const RunContextSchema = z.object({
@@ -66,26 +74,60 @@ export const RunContextSchema = z.object({
   }).optional(),
 });
 
-export type ValidatedCtx = { ok: true; ctx: RunContext } | { ok: false; error: string };
+export type ValidatedCtx =
+  | { ok: true; ctx: RunContext }
+  | { ok: false; error: string; fieldErrors: Record<string, string> };
 
 /**
  * Validate a client-supplied RunContext (unknown keys are stripped by zod).
  * `specProvided` counts as the third possible input: a ctx with neither site
- * nor docText is only runnable when an OpenAPI spec is present.
+ * nor docText is only runnable when an OpenAPI spec is present. The error case
+ * carries both a flat `error` string (logs) and a `fieldErrors` map (so the
+ * dashboard can show each problem against its field).
  */
 export function validateRunContext(input: unknown, specProvided = false): ValidatedCtx {
   const res = RunContextSchema.safeParse(input);
   if (!res.success) {
-    const error = res.error.issues.map((i) => `${i.path.join('.') || 'ctx'}: ${i.message}`).join('; ');
-    return { ok: false, error };
+    const fieldErrors: Record<string, string> = {};
+    for (const i of res.error.issues) {
+      const key = i.path.join('.') || 'ctx';
+      if (!fieldErrors[key]) fieldErrors[key] = i.message; // first issue per field
+    }
+    const error = Object.entries(fieldErrors).map(([k, m]) => `${k}: ${m}`).join('; ');
+    return { ok: false, error, fieldErrors };
   }
   if (!res.data.site && !res.data.docText && !specProvided) {
-    return {
-      ok: false,
-      error: 'ctx: at least one input is required — a target URL (site), a requirements document (docText), or an OpenAPI spec',
-    };
+    const msg = 'at least one input is required — a target URL (site), a requirements document (docText), or an OpenAPI spec';
+    return { ok: false, error: `ctx: ${msg}`, fieldErrors: { ctx: msg } };
   }
   return { ok: true, ctx: res.data };
+}
+
+// ── uploaded OpenAPI spec acceptance (Phase C.2) ──────────────────────────────
+const MAX_SPEC_BYTES = 1_000_000; // 1 MB
+
+export type SpecAcceptance = { ok: true; text: string } | { ok: false; error: string };
+
+/**
+ * Gate a client-uploaded OpenAPI spec before it is written to qa/openapi.yaml:
+ * a non-empty string, ≤1 MB, that yields ≥1 documented path via `parseSpecPaths`
+ * (the same block-YAML parser the api-tester's fabricated-endpoint guard uses —
+ * so anything accepted here is actually usable downstream).
+ */
+export function acceptSpecYaml(specYaml: unknown): SpecAcceptance {
+  if (typeof specYaml !== 'string' || specYaml.trim() === '') {
+    return { ok: false, error: 'specYaml must be a non-empty string' };
+  }
+  if (Buffer.byteLength(specYaml, 'utf8') > MAX_SPEC_BYTES) {
+    return { ok: false, error: 'specYaml exceeds the 1 MB limit' };
+  }
+  if (parseSpecPaths(specYaml).size === 0) {
+    return {
+      ok: false,
+      error: 'specYaml documents no paths — expected an OpenAPI block-style "paths:" section with ≥1 path',
+    };
+  }
+  return { ok: true, text: specYaml };
 }
 
 // ── optional shared-secret auth ───────────────────────────────────────────────
