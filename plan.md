@@ -67,16 +67,16 @@ the dashboard phase-bar work comes after the server changes it depends on.
 
 ## Phase 4 — Tool-layer hardening
 
-- [ ] Task 4.1: URL policy for `http_request` (`tools/http.ts`): allow only the configured target host (from `RunContext.site` / `DEMO_APP_URL`) plus an `HTTP_ALLOW_HOSTS` env escape hatch; always deny link-local/metadata ranges (169.254.0.0/16, `metadata.google.internal`). Return a policy-explaining tool error, never throw.
+- [x] Task 4.1: URL policy for `http_request` (`tools/http.ts`): allow only the configured target host (from `RunContext.site` / `DEMO_APP_URL`) plus an `HTTP_ALLOW_HOSTS` env escape hatch; always deny link-local/metadata ranges (169.254.0.0/16, `metadata.google.internal`). Return a policy-explaining tool error, never throw.
   - Verification: unit tests — target-host URL allowed, `http://169.254.169.254/latest/meta-data` and an off-target host rejected with the policy message.
 
-- [ ] Task 4.2: Restrict sandbox path characters in `resolveSandboxed` / `assertInsideQa` to `[A-Za-z0-9._/\\-]` (rejects `&`, `;`, spaces, quotes), closing the Windows `shell: true` injection vector in `playwright_run`.
+- [x] Task 4.2: Restrict sandbox path characters in `resolveSandboxed` / `assertInsideQa` to `[A-Za-z0-9._/\\-]` (rejects `&`, `;`, spaces, quotes), closing the Windows `shell: true` injection vector in `playwright_run`.
   - Verification: unit tests — `specs/login.spec.ts` accepted; `x&calc.spec.ts` and `a b.spec.ts` rejected with a clear error.
 
-- [ ] Task 4.3: Cap `browser_snapshot` screenshot size (`tools/playwright.ts`): clip full-page captures to a max height (e.g. 4000px) and skip the vision call with a descriptive tool error if the encoded PNG exceeds ~5 MB.
+- [x] Task 4.3: Cap `browser_snapshot` screenshot size (`tools/playwright.ts`): clip full-page captures to a max height (e.g. 4000px) and skip the vision call with a descriptive tool error if the encoded PNG exceeds ~5 MB.
   - Verification: code review of the clip/cap constants + unit test for the size-gate helper; mock E2E still passes.
 
-- [ ] Task 4.4: Fix retry classification in `qwen.ts`: retry only true connection errors (`OpenAI.APIConnectionError` / known transient codes) and 429/5xx — not any error with `status === undefined`; log non-retriable errors once and fail fast (403 model-access denials already fail fast; keep it that way).
+- [x] Task 4.4: Fix retry classification in `qwen.ts`: retry only true connection errors (`OpenAI.APIConnectionError` / known transient codes) and 429/5xx — not any error with `status === undefined`; log non-retriable errors once and fail fast (403 model-access denials already fail fast; keep it that way).
   - Verification: unit test with an injected fake client — a `TypeError` surfaces immediately (1 attempt), a 429 retries with backoff, a 500 retries, a 400 fails fast.
 
 ## Phase 5 — Adjudication rebuttal upgrade

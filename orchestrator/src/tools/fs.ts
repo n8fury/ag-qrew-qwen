@@ -8,6 +8,13 @@ import type { ToolDef } from '../agentLoop.js';
  * coverage matrix, sign-off report. Any path outside qa/ is rejected.
  */
 export function resolveSandboxed(qaRoot: string, relPath: string): string {
+  // Conservative charset: playwright_run passes the resolved path through a
+  // shell on Windows (npx is npx.cmd), so `&`, `;`, quotes, spaces … in an
+  // agent-chosen filename would be command injection. Nothing legitimate an
+  // agent writes needs them.
+  if (!/^[A-Za-z0-9._\\/-]+$/.test(relPath)) {
+    throw new Error(`path contains unsupported characters (allowed: letters, digits, . _ - and separators): ${relPath}`);
+  }
   const root = resolve(qaRoot);
   // Agents address artefacts as "qa/<path>" (how tasks and bus signals name them),
   // while the schema says paths are relative to qa/ — accept both forms.

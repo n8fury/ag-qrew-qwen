@@ -1,7 +1,45 @@
 import type { ToolDef } from '../agentLoop.js';
+import { config } from '../config.js';
+import { deniedHost } from '../security.js';
 
 const MAX_BODY_CHARS = 4000;
 const TIMEOUT_MS = 15_000;
+
+/**
+ * URL policy: the agents only ever have business with the app under test.
+ * Allowed hosts = the run's SITE_URL + the configured DEMO_APP_URL + any extra
+ * hosts in HTTP_ALLOW_HOSTS (comma-separated escape hatch for real targets
+ * behind redirects/CDNs). Link-local/metadata hosts are always denied — even if
+ * allowlisted. Returns a policy-explaining error string, or null when allowed.
+ */
+export function checkUrlPolicy(rawUrl: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return `ERROR: "${rawUrl}" is not a valid absolute URL — include the scheme and host, e.g. ${config.demoAppUrl}/api/tasks.`;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return `ERROR: only http(s) URLs are allowed, got ${url.protocol}//`;
+  }
+  const denied = deniedHost(url.hostname);
+  if (denied) return `ERROR: request blocked by policy — ${url.hostname} is a ${denied}. Test the app under test, not the platform.`;
+  const allowed = new Set<string>();
+  for (const candidate of [process.env.SITE_URL, config.demoAppUrl, ...(process.env.HTTP_ALLOW_HOSTS ?? '').split(',')]) {
+    const c = (candidate ?? '').trim();
+    if (!c) continue;
+    try { allowed.add(new URL(c.includes('://') ? c : `http://${c}`).hostname.toLowerCase()); } catch { /* skip malformed */ }
+  }
+  // Loopback aliases are the same target — agents write 127.0.0.1 where the
+  // task says localhost; don't false-block a legitimate probe over that.
+  const loopback = ['localhost', '127.0.0.1', '[::1]'];
+  if (loopback.some((h) => allowed.has(h))) loopback.forEach((h) => allowed.add(h));
+  if (!allowed.has(url.hostname.toLowerCase())) {
+    return `ERROR: request blocked by policy — host "${url.hostname}" is not the app under test ` +
+      `(allowed: ${[...allowed].join(', ') || '(none configured)'}). Stay on the target site's URLs.`;
+  }
+  return null;
+}
 
 /**
  * http_request — qa-api-tester's probe. Plain fetch with a timeout; returns
@@ -34,6 +72,8 @@ export function httpRequestTool(): ToolDef {
       },
     },
     run: async (args: { method: string; url: string; headers?: Record<string, string>; body?: string }) => {
+      const policyError = checkUrlPolicy(args.url);
+      if (policyError) return policyError;
       const headers: Record<string, string> = { ...(args.headers ?? {}) };
       if (args.body && !Object.keys(headers).some((h) => h.toLowerCase() === 'content-type')) {
         headers['Content-Type'] = 'application/json';

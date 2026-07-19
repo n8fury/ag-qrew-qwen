@@ -1,10 +1,11 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { resolve, sep, join, dirname } from 'node:path';
+import { resolve, join, dirname } from 'node:path';
 import { mkdirSync, existsSync } from 'node:fs';
 import { chromium } from 'playwright';
 import type { ToolDef } from '../agentLoop.js';
 import { chat } from '../qwen.js';
+import { resolveSandboxed } from './fs.js';
 
 const execP = promisify(execFile);
 // On Windows, npx is npx.cmd — spawning a .cmd without a shell throws (EINVAL/ENOENT),
@@ -15,16 +16,8 @@ const exec = (cmd: string, args: string[], opts: { timeout: number; maxBuffer: n
 const RUN_TIMEOUT_MS = 180_000;
 const MAX_OUTPUT_CHARS = 5000;
 
-export function assertInsideQa(qaRoot: string, relPath: string): string {
-  const root = resolve(qaRoot);
-  // accept both "qa/<path>" and "<path>" — see fs.ts resolveSandboxed
-  const rel = relPath.replace(/^qa[\\/]+/i, '');
-  const target = resolve(root, rel);
-  if (target !== root && !target.startsWith(root + sep)) {
-    throw new Error(`path escapes the qa/ sandbox: ${relPath}`);
-  }
-  return target;
-}
+// Same sandbox contract as the fs tools — one implementation, one charset policy.
+export const assertInsideQa = resolveSandboxed;
 
 const INSTALL_TIMEOUT_MS = 300_000;
 let chromiumInstall: Promise<void> | null = null;
@@ -120,6 +113,19 @@ export function playwrightRunTool(qaRoot: string): ToolDef {
  * saves the PNG under qa/screenshots/ as evidence, then sends it to qwen-vl
  * with the caller's question and returns the vision model's analysis.
  */
+// A "full page" on a pathological/infinite-scroll page can be tens of thousands
+// of pixels tall — clip the capture and refuse to base64 a huge PNG into the
+// vision prompt (token blowup / request-too-large kills the call anyway).
+const MAX_SHOT_HEIGHT_PX = 4000;
+const MAX_VISION_PNG_BYTES = 5 * 1024 * 1024;
+
+/** Error string if the encoded PNG is too big to send to the vision model, else null. */
+export function pngTooLargeError(bytes: number, savedPath: string): string | null {
+  if (bytes <= MAX_VISION_PNG_BYTES) return null;
+  return `ERROR: screenshot saved to ${savedPath} (${(bytes / 1024 / 1024).toFixed(1)} MB) but it exceeds the ` +
+    `${MAX_VISION_PNG_BYTES / 1024 / 1024} MB limit for vision analysis. Snapshot a more specific URL/route ` +
+    `instead of a very long page; cite the saved PNG as evidence if you only need the capture.`;
+}
 export function browserSnapshotTool(qaRoot: string): ToolDef {
   let counter = 0;
   return {
@@ -152,7 +158,14 @@ export function browserSnapshotTool(qaRoot: string): ToolDef {
           const n = String(++counter).padStart(3, '0');
           const shotPath = join(resolve(qaRoot), 'screenshots', `snap-${n}.png`);
           mkdirSync(dirname(shotPath), { recursive: true });
-          const png = await page.screenshot({ path: shotPath, fullPage: true });
+          // full page, but clipped to a sane height (see MAX_SHOT_HEIGHT_PX)
+          const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight).catch(() => 900);
+          const png = await page.screenshot({
+            path: shotPath,
+            clip: { x: 0, y: 0, width: 1280, height: Math.min(Math.max(pageHeight, 900), MAX_SHOT_HEIGHT_PX) },
+          });
+          const tooLarge = pngTooLargeError(png.length, `qa/screenshots/snap-${n}.png`);
+          if (tooLarge) return tooLarge;
           const b64 = Buffer.from(png).toString('base64');
           const res = await chat({
             model: 'vision',

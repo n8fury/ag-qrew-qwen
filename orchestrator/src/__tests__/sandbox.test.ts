@@ -36,12 +36,22 @@ describe.each(resolvers)('%s', (_name, fn) => {
   });
 
   it('rejects absolute paths outside the root', () => {
+    // Windows absolute paths carry a drive colon, so the charset guard may fire
+    // before the escape check — either way the path must be refused.
     const outside = resolve(qaRoot, '..') + sep + 'elsewhere.txt';
-    expect(() => fn(qaRoot, outside)).toThrow(/escapes the qa\/ sandbox/);
+    expect(() => fn(qaRoot, outside)).toThrow(/escapes the qa\/ sandbox|unsupported characters/);
   });
 
   it('rejects a sibling directory whose name shares the root prefix', () => {
     // e.g. root "/tmp/qa" must not admit "/tmp/qa-evil/x"
-    expect(() => fn(qaRoot, `${qaRoot}-evil${sep}x.txt`)).toThrow(/escapes the qa\/ sandbox/);
+    expect(() => fn(qaRoot, `${qaRoot}-evil${sep}x.txt`)).toThrow(/escapes the qa\/ sandbox|unsupported characters/);
+  });
+
+  it('rejects shell metacharacters and spaces in filenames', () => {
+    // playwright_run passes the resolved path through a shell on Windows —
+    // an agent-chosen name like "x&calc.spec.ts" must never reach it.
+    for (const bad of ['x&calc.spec.ts', 'a b.spec.ts', 'x;rm.spec.ts', 'x"y.spec.ts', 'x`y.spec.ts', 'x$(y).spec.ts']) {
+      expect(() => fn(qaRoot, bad)).toThrow(/unsupported characters/);
+    }
   });
 });
