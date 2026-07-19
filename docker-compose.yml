@@ -6,12 +6,19 @@ services:
   demo-app:
     build: ./demo-app
     container_name: agqrew-demo-app
+    # survive instance reboots / OOM kills — the ECS demo must stay up unattended
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      # loopback-only: reachable on the host (curl/browser at localhost:3000) but
+      # never exposed on a public interface — the orchestrator reaches it via the
+      # compose network (DEMO_APP_URL=http://demo-app:3000), so no inbound
+      # security-group rule for 3000 is ever needed.
+      - "127.0.0.1:3000:3000"
 
   orchestrator:
     build: ./orchestrator
     container_name: agqrew-orchestrator
+    restart: unless-stopped
     ports:
       - "8787:8787"
     env_file:

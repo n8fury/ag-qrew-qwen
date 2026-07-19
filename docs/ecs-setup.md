@@ -17,14 +17,26 @@ Written for someone with zero Alibaba Cloud context. Total time: ~30 minutes.
    |---|---|---|
    | 22 | SSH | your IP (`x.x.x.x/32`) |
    | 8787 | orchestrator dashboard | your IP (`x.x.x.x/32`) |
-   | 3000 | demo-app (optional — only if you want it directly reachable) | your IP |
 
-   **Why not 0.0.0.0/0 for 8787:** the dashboard has no authentication — anyone who finds
-   the port can click *Start run* and spend your Model Studio tokens, and the instance has
-   to stay up until the deadline. Restricting to your own IP still satisfies the proof
-   recording (it's your browser). If your home IP rotates, widen to your ISP's range or
-   update the rule when it changes — it's a 10-second console edit.
-9. Set a root password (or key pair) → **Create**. Note the public IP.
+   (No rule for 3000 — the demo-app is bound to `127.0.0.1` in docker-compose.yml, so it
+   is reachable from the instance itself and from the orchestrator over the compose
+   network, but never from the internet.)
+
+   **Why not 0.0.0.0/0 for 8787 — not even temporarily:** the dashboard has no
+   authentication, and the exposure is worse than "someone spends your tokens":
+   `POST /api/run` accepts an arbitrary run context in the request body, and the agents'
+   `http_request` tool will fetch whatever URL the run context points them at. On ECS
+   that includes the instance metadata endpoint (`http://100.100.100.200`), which can
+   serve RAM-role STS credentials — i.e. an open 8787 is an SSRF path into your cloud
+   account, not just a token-burner. Restricting to your own IP still satisfies the
+   proof recording (it's your browser). If your home IP rotates, widen to your ISP's
+   range or update the rule when it changes — it's a 10-second console edit.
+9. **Harden the metadata service:** under *Advanced Settings* (or *Instance Metadata* in
+   the creation form), set **Instance Metadata Access Mode → Security Hardening mode**
+   (token-required / IMDSv2-style). This makes the metadata endpoint unusable by
+   simple-GET SSRF even if 8787 is ever misconfigured. On an existing instance:
+   Console → the instance → *Actions* → *Modify Instance Metadata Options*.
+10. Set a root password (or key pair) → **Create**. Note the public IP.
 
 ## 2. Prepare the instance
 
@@ -79,6 +91,9 @@ Keep it separate from the demo video. Link both in the README next to
 
 - The instance is pay-as-you-go (~cents/day) — do NOT release it after the recording; the
   live URL is part of the submission.
+- Both services carry `restart: unless-stopped`, so an instance reboot (maintenance, OOM
+  kill) brings the whole stack back on its own — no SSH needed. Verify once after a
+  `reboot` that `docker compose ps` shows both containers Up.
 - **Snapshot the system disk as insurance** (Console → the instance → *Disks* → *Create
   Snapshot*) right after the successful run, so a broken instance can be restored in minutes.
 - State hygiene before any recorded run (same as local):

@@ -28,7 +28,8 @@ docker compose up --build -d
 docker compose ps
 
 echo
-echo "✔ demo-app     → http://localhost:3000"
+echo "✔ demo-app     → http://localhost:3000   (loopback-only — never exposed publicly)"
 echo "✔ dashboard    → http://localhost:8787   (open it, click Start run, then Proceed)"
-echo "  (on a cloud instance, replace localhost with the public IP — inbound 8787 must be"
-echo "   authorized to your browser's IP in the security group)"
+echo "  (on a cloud instance, open the dashboard at http://<PUBLIC_IP>:8787 — inbound 8787"
+echo "   must be authorized to your browser's IP in the security group; the demo-app stays"
+echo "   loopback-only and needs no inbound rule)"
