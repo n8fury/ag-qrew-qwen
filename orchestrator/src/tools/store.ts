@@ -12,7 +12,7 @@ import type { Bus } from '../bus.js';
 // and refuses to file when the spec does not document that pair.
 
 /** Parse `paths:` from the (2-space indented) OpenAPI YAML: path → set of methods. */
-function parseSpecPaths(specText: string): Map<string, Set<string>> {
+export function parseSpecPaths(specText: string): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>();
   const lines = specText.split('\n');
   let inPaths = false;
@@ -30,7 +30,7 @@ function parseSpecPaths(specText: string): Map<string, Set<string>> {
 }
 
 /** Does `path` match a spec path, treating {param} segments as wildcards? */
-function pathMatches(specPath: string, path: string): boolean {
+export function pathMatches(specPath: string, path: string): boolean {
   const a = specPath.split('/').filter(Boolean);
   const b = path.split('/').filter(Boolean);
   if (a.length !== b.length) return false;
@@ -38,7 +38,7 @@ function pathMatches(specPath: string, path: string): boolean {
 }
 
 /** Returns an error string if the bug text cites an endpoint the spec does not document. */
-function undocumentedEndpointCited(bug: { title: string; oracle: string; steps: string }, qaRoot: string): string | null {
+export function undocumentedEndpointCited(bug: { title: string; oracle: string; steps: string }, qaRoot: string): string | null {
   const specFile = join(qaRoot, 'openapi.yaml');
   if (!existsSync(specFile)) return null; // no spec to check against
   const spec = parseSpecPaths(readFileSync(specFile, 'utf8'));

@@ -103,7 +103,7 @@ function summarizeToolResult(hint: string, result: string): string {
 // So: repair what we can, and ALWAYS write valid JSON back into the message.
 
 /** Escape raw control characters that appear inside JSON string literals. */
-function escapeControlCharsInStrings(s: string): string {
+export function escapeControlCharsInStrings(s: string): string {
   let out = '';
   let inString = false;
   for (let i = 0; i < s.length; i++) {
@@ -139,7 +139,7 @@ export function parseToolArgs(rawIn: string | null | undefined): { args: any } |
 
 /** Close an unterminated trailing string and any unclosed braces/brackets — models
  *  cut payloads off mid-string when they run out of output budget. */
-function closeUnterminated(s: string): string {
+export function closeUnterminated(s: string): string {
   let inString = false;
   const stack: string[] = [];
   for (let i = 0; i < s.length; i++) {

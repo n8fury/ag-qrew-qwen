@@ -7,7 +7,7 @@ import type { ToolDef } from '../agentLoop.js';
  * for artefacts the DB doesn't hold: the test plan, generated Playwright specs,
  * coverage matrix, sign-off report. Any path outside qa/ is rejected.
  */
-function resolveSandboxed(qaRoot: string, relPath: string): string {
+export function resolveSandboxed(qaRoot: string, relPath: string): string {
   const root = resolve(qaRoot);
   // Agents address artefacts as "qa/<path>" (how tasks and bus signals name them),
   // while the schema says paths are relative to qa/ — accept both forms.

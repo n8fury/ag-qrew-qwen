@@ -15,7 +15,7 @@ const exec = (cmd: string, args: string[], opts: { timeout: number; maxBuffer: n
 const RUN_TIMEOUT_MS = 180_000;
 const MAX_OUTPUT_CHARS = 5000;
 
-function assertInsideQa(qaRoot: string, relPath: string): string {
+export function assertInsideQa(qaRoot: string, relPath: string): string {
   const root = resolve(qaRoot);
   // accept both "qa/<path>" and "<path>" — see fs.ts resolveSandboxed
   const rel = relPath.replace(/^qa[\\/]+/i, '');
