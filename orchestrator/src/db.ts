@@ -42,6 +42,10 @@ export class DB {
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     this.db = new Database(path);
     this.db.pragma('journal_mode = WAL');
+    // OFF by default in SQLite — without this the results.case_id / disputes.bug_id
+    // FKs are decorative and an agent passing a bogus id inserts a silent orphan
+    // that skews the verdict tallies.
+    this.db.pragma('foreign_keys = ON');
     this.init();
   }
 

@@ -114,6 +114,8 @@ export function escapeControlCharsInStrings(s: string): string {
       if (c === '\n') { out += '\\n'; continue; }
       if (c === '\r') { out += '\\r'; continue; }
       if (c === '\t') { out += '\\t'; continue; }
+      // any other raw control char (\b, \f, \x00…\x1f) is equally invalid JSON
+      if (c < '\x20') { out += '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'); continue; }
       out += c;
     } else {
       if (c === '"') inString = true;
@@ -158,6 +160,35 @@ export function closeUnterminated(s: string): string {
   if (inString) out += '"';
   while (stack.length) out += stack.pop();
   return out;
+}
+
+// ── Loop-guard escalation ─────────────────────────────────────────────────────
+// Nudge at 3 identical (call, result) pairs; at 5, stop feeding the result back
+// at all — the content itself is the bait. Bad-JSON attempts get their own
+// wording (the server was never contacted, so "retry the SAME call with fixed
+// JSON" is right at 3), but they too must hit the hard stop at 5: before this
+// was extracted, the `!parsed` branch shadowed the withhold branch forever and
+// a malformed-payload loop could burn the whole iteration budget.
+export function applyLoopGuard(toolName: string, result: string, parsed: boolean, repeats: number): string {
+  if (repeats >= 5) {
+    const cause = parsed
+      ? `with identical arguments and an identical result`
+      : `with the SAME malformed (non-JSON) arguments`;
+    return `[loop guard] Call #${repeats} of ${toolName} ${cause}. The result is now WITHHELD. You are stuck ` +
+      `in a loop. ${parsed ? '' : 'Do NOT retry this payload — log the test as SKIPPED in your artefact. '}` +
+      `Issue a DIFFERENT call that advances your task (your next deliverable per your instructions), ` +
+      `or finish with a plain-text summary of what is done and what is blocked.`;
+  }
+  if (repeats >= 3) {
+    return parsed
+      ? result + `\n\n[loop guard] You have now made this EXACT call ${repeats} times and received the SAME result each time. ` +
+        `Do NOT repeat it — you already have this information. Move on to your next deliverable.`
+      : result + `\n\n[loop guard] This is malformed-JSON failure #${repeats} for this exact payload. The server was ` +
+        `NEVER contacted — this is your argument formatting, not the target failing, so it never counts as "unreachable". ` +
+        `Rewrite the arguments as ONE compact line (shorter strings, fewer headers/fields). If you cannot express this ` +
+        `payload, log the test as SKIPPED in your artefact and move to your next deliverable.`;
+  }
+  return result;
 }
 
 export class AgentLoop {
@@ -265,19 +296,7 @@ export class AgentLoop {
           const prev = seenCalls.get(sig);
           const repeats = prev && prev.last === result ? prev.n + 1 : 1;
           seenCalls.set(sig, { n: repeats, last: result });
-          if (!parsed && repeats >= 3) {
-            result += `\n\n[loop guard] This is malformed-JSON failure #${repeats} for this exact payload. The server was ` +
-              `NEVER contacted — this is your argument formatting, not the target failing, so it never counts as "unreachable". ` +
-              `Rewrite the arguments as ONE compact line (shorter strings, fewer headers/fields). If you cannot express this ` +
-              `payload, log the test as SKIPPED in your artefact and move to your next deliverable.`;
-          } else if (repeats >= 5) {
-            result = `[loop guard] Call #${repeats} of ${call.function.name} with identical arguments and an identical result. ` +
-              `The result is now WITHHELD. You are stuck in a loop. Issue a DIFFERENT call that advances your task ` +
-              `(your next deliverable per your instructions), or finish with a plain-text summary of what is done and what is blocked.`;
-          } else if (repeats >= 3) {
-            result += `\n\n[loop guard] You have now made this EXACT call ${repeats} times and received the SAME result each time. ` +
-              `Do NOT repeat it — you already have this information. Move on to your next deliverable.`;
-          }
+          result = applyLoopGuard(call.function.name, result, parsed !== null, repeats);
           const hint = callHint(call.function.name, args);
           callRef.hints.push(hint);
           trace.push(`${hint}${parsed ? '' : ' [bad-json]'}${repeats >= 3 ? ` [x${repeats}]` : ''}`);

@@ -42,16 +42,16 @@ the dashboard phase-bar work comes after the server changes it depends on.
 
 ## Phase 2 — Logic-bug fixes (each with a regression test from Phase 1's harness)
 
-- [ ] Task 2.1: Fix the loop-guard escalation ordering in `agentLoop.ts` so bad-JSON repeats also reach the hard "result WITHHELD" stop at ≥5 identical attempts (currently the `!parsed && repeats >= 3` branch shadows it forever).
+- [x] Task 2.1: Fix the loop-guard escalation ordering in `agentLoop.ts` so bad-JSON repeats also reach the hard "result WITHHELD" stop at ≥5 identical attempts (currently the `!parsed && repeats >= 3` branch shadows it forever).
   - Verification: new unit test drives the guard logic (extracted into a testable function) with 5 identical unparseable payloads and asserts the withheld/hard-stop message appears; `npm test` passes.
 
-- [ ] Task 2.2: Enable `PRAGMA foreign_keys = ON` in `db.ts` so `results.case_id` and `disputes.bug_id` FKs are enforced.
+- [x] Task 2.2: Enable `PRAGMA foreign_keys = ON` in `db.ts` so `results.case_id` and `disputes.bug_id` FKs are enforced.
   - Verification: unit test asserts `recordResult({ case_id: 9999, … })` throws a FOREIGN KEY constraint error on a fresh DB, and the mock E2E (Task 1.7) still passes.
 
-- [ ] Task 2.3: Generalise `escapeControlCharsInStrings` to escape all raw control chars `< 0x20` inside JSON strings (as `\uXXXX`), not just `\n` `\r` `\t`.
+- [x] Task 2.3: Generalise `escapeControlCharsInStrings` to escape all raw control chars `< 0x20` inside JSON strings (as `\uXXXX`), not just `\n` `\r` `\t`.
   - Verification: unit test feeds a string containing `\x08` and `\x0c` inside a JSON string literal and `parseToolArgs` returns parsed args.
 
-- [ ] Task 2.4: Validate numeric config in `config.ts` — `AGENT_MAX_ITERATIONS`, `AGENT_MAX_TOKENS`, `PORT` must be finite positive numbers; throw at startup otherwise (a `NaN` budget currently disables the token guard silently).
+- [x] Task 2.4: Validate numeric config in `config.ts` — `AGENT_MAX_ITERATIONS`, `AGENT_MAX_TOKENS`, `PORT` must be finite positive numbers; throw at startup otherwise (a `NaN` budget currently disables the token guard silently).
   - Verification: unit test asserts a helper `reqNumber('X', …)` throws on `"150k"` and returns 150000 on `"150000"`; `npm run typecheck` passes.
 
 ## Phase 3 — Server security

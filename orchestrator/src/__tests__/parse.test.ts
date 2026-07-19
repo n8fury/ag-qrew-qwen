@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { closeUnterminated, escapeControlCharsInStrings, parseToolArgs } from '../agentLoop.js';
+import { applyLoopGuard, closeUnterminated, escapeControlCharsInStrings, parseToolArgs } from '../agentLoop.js';
 
 describe('parseToolArgs', () => {
   it('parses plain valid JSON', () => {
@@ -67,5 +67,50 @@ describe('escapeControlCharsInStrings', () => {
   it('respects escaped quotes inside strings', () => {
     const out = escapeControlCharsInStrings('{"a":"he said \\"hi\\"\nbye"}');
     expect(JSON.parse(out)).toEqual({ a: 'he said "hi"\nbye' });
+  });
+
+  it('escapes all other raw control chars (\\b, \\f, …) inside strings', () => {
+    const parsed = parseToolArgs('{"a":"x\by\fz\x01w"}');
+    expect(parsed).toEqual({ args: { a: 'x\by\fz\x01w' } });
+  });
+});
+
+describe('applyLoopGuard', () => {
+  const result = 'HTTP 200 OK';
+  const jsonError = 'ERROR: the arguments of your http_request call were not valid JSON';
+
+  it('leaves the first two identical results untouched', () => {
+    expect(applyLoopGuard('http_request', result, true, 1)).toBe(result);
+    expect(applyLoopGuard('http_request', result, true, 2)).toBe(result);
+  });
+
+  it('appends the repeat nudge at 3-4 identical parsed calls', () => {
+    const out = applyLoopGuard('http_request', result, true, 3);
+    expect(out).toContain(result); // result still delivered
+    expect(out).toMatch(/EXACT call 3 times/);
+  });
+
+  it('withholds the result at 5 identical parsed calls', () => {
+    const out = applyLoopGuard('http_request', result, true, 5);
+    expect(out).not.toContain(result);
+    expect(out).toMatch(/WITHHELD/);
+    expect(out).toMatch(/DIFFERENT call/);
+  });
+
+  it('gives bad-JSON repeats their own wording at 3-4', () => {
+    const out = applyLoopGuard('http_request', jsonError, false, 3);
+    expect(out).toContain(jsonError);
+    expect(out).toMatch(/malformed-JSON failure #3/);
+    expect(out).toMatch(/NEVER contacted/);
+  });
+
+  it('hard-stops bad-JSON loops at 5 too (previously shadowed forever)', () => {
+    // 5 identical unparseable payloads: the first four escalate softly, the
+    // fifth must reach the hard stop instead of repeating the soft nudge.
+    const seen = [1, 2, 3, 4, 5].map((n) => applyLoopGuard('http_request', jsonError, false, n));
+    expect(seen[3]).toMatch(/malformed-JSON failure #4/);
+    expect(seen[4]).toMatch(/WITHHELD/);
+    expect(seen[4]).toMatch(/SKIPPED/);
+    expect(seen[4]).not.toContain(jsonError);
   });
 });
