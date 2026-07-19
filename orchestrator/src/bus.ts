@@ -1,4 +1,4 @@
-import { appendFileSync, readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readSync, statSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { EventEmitter } from 'node:events';
 
@@ -77,15 +77,46 @@ export class Bus extends EventEmitter {
     return sig;
   }
 
+  // Incremental-read cache: the bus file is append-only and grows across
+  // sessions forever, while readAll() is called constantly (dashboard polling,
+  // allDone/blockers checks). Parse each byte once — subsequent reads only
+  // consume what was appended since. All sessions are cached; the session
+  // filter applies on return.
+  private cachedSignals: Signal[] = [];
+  private cachedBytes = 0;
+
   /** All signals for the current session (stale/other-session lines are ignored). */
   readAll(): Signal[] {
-    if (!existsSync(this.path)) return [];
-    return readFileSync(this.path, 'utf8')
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map(Bus.parse)
-      .filter((s): s is Signal => s !== null && s.session === this.session);
+    if (!existsSync(this.path)) {
+      this.cachedSignals = [];
+      this.cachedBytes = 0;
+      return [];
+    }
+    const size = statSync(this.path).size;
+    if (size < this.cachedBytes) {
+      // file was truncated/replaced externally — start over
+      this.cachedSignals = [];
+      this.cachedBytes = 0;
+    }
+    if (size > this.cachedBytes) {
+      const fd = openSync(this.path, 'r');
+      try {
+        const buf = Buffer.alloc(size - this.cachedBytes);
+        readSync(fd, buf, 0, buf.length, this.cachedBytes);
+        const text = buf.toString('utf8');
+        // only consume complete lines — a torn tail stays for the next read
+        const lastNl = text.lastIndexOf('\n');
+        const complete = lastNl === -1 ? '' : text.slice(0, lastNl + 1);
+        this.cachedBytes += Buffer.byteLength(complete, 'utf8');
+        for (const line of complete.split('\n')) {
+          const s = Bus.parse(line.trim());
+          if (s) this.cachedSignals.push(s);
+        }
+      } finally {
+        closeSync(fd);
+      }
+    }
+    return this.cachedSignals.filter((s) => s.session === this.session);
   }
 
   /** True once every agent in `agents` has emitted a DONE signal this session. */

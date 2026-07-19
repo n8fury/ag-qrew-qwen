@@ -105,14 +105,14 @@ Pipeline segments (fixed, 9): Env gate → Test plan → Approval → Test cases
 
 ## Phase 7 — Cleanups
 
-- [ ] Task 7.1: SSE keepalive — server sends a `: ping` comment every 25 s to each connected client (`server.ts`); dashboard's `EventSource` unaffected.
+- [x] Task 7.1: SSE keepalive — server sends a `: ping` comment every 25 s to each connected client (`server.ts`); dashboard's `EventSource` unaffected.
   - Verification: `curl -N localhost:8787/api/stream` shows ping comments arriving while idle.
 
-- [ ] Task 7.2: Incremental bus reads — `Bus` caches parsed signals with a byte offset and only parses appended data on subsequent `readAll` calls (drop-in, same return shape).
+- [x] Task 7.2: Incremental bus reads — `Bus` caches parsed signals with a byte offset and only parses appended data on subsequent `readAll` calls (drop-in, same return shape).
   - Verification: existing bus unit tests still pass; new test appends after a read and sees both old and new signals; a test writes 10k lines and asserts a second `readAll` is served from cache (no full re-parse — assert via a parse-count hook or timing-free counter).
 
-- [ ] Task 7.3: Tidy local run archives: move `orchestrator/qa-*`/`*.log` clutter under `orchestrator/archives/` (untracked), update `.gitignore` patterns accordingly.
+- [x] Task 7.3: Tidy local run archives: move `orchestrator/qa-*`/`*.log` clutter under `orchestrator/archives/` (untracked), update `.gitignore` patterns accordingly.
   - Verification: `git status` stays clean; `ls orchestrator` no longer lists `qa-attempt*` / `run*.log` at top level.
 
-- [ ] Task 7.4: README refresh — document the token/loopback options, the PHASE signal, the progress bar, and the `npm test` / CI story.
+- [x] Task 7.4: README refresh — document the token/loopback options, the PHASE signal, the progress bar, and the `npm test` / CI story.
   - Verification: README sections exist and match the implemented behaviour (spot-check commands copy-paste clean).

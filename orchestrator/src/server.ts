@@ -30,6 +30,12 @@ function broadcast(sig: Signal) {
 }
 bus.on('signal', broadcast);
 
+// Keepalive: proxies (the ECS demo sits behind one) drop idle event streams;
+// an SSE comment every 25s keeps the connection warm and is ignored by clients.
+setInterval(() => {
+  for (const res of sseClients) res.write(': ping\n\n');
+}, 25_000).unref();
+
 // ── run state (single active run at a time — this is a demo controller) ─────────
 let running = false;
 let proceedResolver: (() => void) | null = null;

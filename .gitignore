@@ -5,7 +5,8 @@
 **/qa/**
 !**/qa/.gitkeep
 
-# Run archives + logs (local debugging state, e.g. orchestrator/qa-attempt4-*/)
+# Run archives + logs (local debugging state, collected under orchestrator/archives/)
+orchestrator/archives/
 orchestrator/qa-*/
 orchestrator/*.log
 orchestrator/run*.log

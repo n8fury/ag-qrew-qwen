@@ -57,7 +57,8 @@ flowchart TD
 ```
 
 - **AgentLoop** (`agentLoop.ts`) — one reusable class instantiated per agent: `chat → tool_calls → results → loop`; guards on per-agent iteration and token budgets; a `BLOCKED` path instead of crashing.
-- **Signal bus** (`bus.ts`) — append-only `qa/shared-task-list.txt`, human-readable, streamed live to the dashboard over SSE. Grammar: `META · HAWK-ENV · TC-READY · SECTION-DONE · BUG-FILED · DISPUTE · RESOLVED · BLOCKED · DONE`.
+- **Signal bus** (`bus.ts`) — append-only `qa/shared-task-list.txt`, human-readable, streamed live to the dashboard over SSE. Grammar: `META · HAWK-ENV · TC-READY · SECTION-DONE · BUG-FILED · DISPUTE · RESOLVED · BLOCKED · DONE · PHASE`
+(`PHASE` marks each of the 9 pipeline segments and drives the dashboard's progress bar — see [docs/signals.md](docs/signals.md)).
 - **Tool layer** (`tools/`) — typed JSON-schema functions for Qwen function calling: `bus_read/write`, `tc_store/list`, `bug_file`, `result_record`, `fs_read/write` (sandboxed to `qa/`), `http_request`, `playwright_run`, `browser_snapshot` (→ qwen-vl), `raise_dispute`. Each agent sees only the tools its role needs.
 - **Persistence** (`db.ts`) — SQLite tables: `test_cases`, `runs`, `results`, `bugs`, `disputes`. Replaces TestRail/Jira so a judge can run everything with no external accounts.
 - **DashScope client** (`qwen.ts`) — OpenAI-compatible endpoint with retry/backoff and a token tally. **This is the file demonstrating Alibaba Cloud API usage.**
@@ -75,9 +76,11 @@ flowchart TD
 ### Dashboard
 
 A React dashboard (Vite, [`dashboard/`](dashboard/)) served by the orchestrator at
-**http://localhost:8787** — live signal feed over SSE, run controls (Start / the one **Proceed**
-approval), a filterable test-case browser, a bug list with **dispute & adjudication badges**, and
-the QA Lead's sign-off report with run metrics. The build (`dashboard/dist`) is committed, so it
+**http://localhost:8787** — a **9-segment pipeline progress bar** (fed by the orchestrator's
+`PHASE` signals: amber while awaiting your approval, verdict-tinted when the run finishes),
+live signal feed over SSE, run controls (Start / the one **Proceed** approval), a filterable
+test-case browser, a bug list with **dispute & adjudication badges**, and the QA Lead's
+sign-off report with run metrics. The build (`dashboard/dist`) is committed, so it
 works from a fresh clone with zero extra steps; if the build is missing, `server.ts` falls back to
 an inline zero-dependency page. All data views read the same SQLite store + signal bus the agents
 write — screenshots below are from real Qwen runs.
@@ -134,6 +137,18 @@ npm run demo:mock
 ```
 
 Expect `✅ MOCK PASS` with 8 green invariants.
+
+### Tests & CI
+
+```bash
+cd orchestrator && npm test        # vitest — unit suites + a full mock-model pipeline E2E, no API key needed
+npm run typecheck                  # strict tsc over src/ (tests included)
+```
+
+The suite covers the JSON-repair pipeline, the bus protocol (incl. `PHASE` parsing), the
+OpenAPI spec guard, the verdict matrix, the qa/ sandbox, URL/token security policies, and the
+adjudication prompts. GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml))
+runs typecheck + tests and the dashboard build on every push/PR.
 
 ### Option C — bare Node (needs a Qwen key)
 
