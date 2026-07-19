@@ -35,18 +35,27 @@ Guidance: UPHELD = the finding stands as filed; DOWNGRADED = real but less sever
 RECLASSIFIED = real but mischaracterised (e.g. a UI bug filed as a data bug), set newTitle;
 REJECTED = the counter-evidence disproves it (a false positive).`;
 
-export async function adjudicate(dispute: Dispute, db: DB, bus: Bus): Promise<Adjudication> {
-  const bug = db.getBug(dispute.bug_id);
+/** The full bug row as the debaters/judge see it — steps and evidence included:
+ *  the judge is weighing EVIDENCE, so the filed reproduction and its artefacts
+ *  (response bodies, screenshot paths) are the substance, not decoration. */
+export function bugBlock(bug?: Bug): string {
+  if (!bug) return '  (bug row not found)';
+  return [
+    `  title: ${bug.title}`,
+    `  severity: ${bug.severity}`,
+    `  module: ${bug.module}`,
+    `  oracle: ${bug.oracle}`,
+    `  steps: ${bug.steps}`,
+    `  expected: ${bug.expected}`,
+    `  actual: ${bug.actual}`,
+    `  evidence: ${bug.evidence || '(none recorded)'}`,
+  ].join('\n');
+}
 
-  // One rebuttal exchange before the ruling: the agent that filed the finding gets
-  // to answer the challenge. This makes it a short debate (not a single-shot
-  // counter-claim) — the judge then rules on claim + counter + rebuttal together.
-  const rebuttal = await rebut(dispute);
-  bus.write('PROGRESS', `rebuttal by ${dispute.raised_by} on bug #${dispute.bug_id}: ${rebuttal.slice(0, 160)}`, 'qa-lead');
-
-  const user = [
+export function buildJudgePrompt(dispute: Dispute, bug: Bug | undefined, rebuttal: string): string {
+  return [
     `FINDING UNDER DISPUTE (bug #${dispute.bug_id}):`,
-    bug ? `  title: ${bug.title}\n  severity: ${bug.severity}\n  module: ${bug.module}\n  oracle: ${bug.oracle}\n  expected: ${bug.expected}\n  actual: ${bug.actual}` : '  (bug row not found)',
+    bugBlock(bug),
     ``,
     `AGENT A — ${dispute.raised_by} (filed the finding) claims:`,
     `  ${dispute.claim}`,
@@ -59,10 +68,20 @@ export async function adjudicate(dispute: Dispute, db: DB, bus: Bus): Promise<Ad
     ``,
     `Adjudicate on the full exchange. Return the JSON verdict.`,
   ].join('\n');
+}
+
+export async function adjudicate(dispute: Dispute, db: DB, bus: Bus): Promise<Adjudication> {
+  const bug = db.getBug(dispute.bug_id);
+
+  // One rebuttal exchange before the ruling: the agent that filed the finding gets
+  // to answer the challenge. This makes it a short debate (not a single-shot
+  // counter-claim) — the judge then rules on claim + counter + rebuttal together.
+  const rebuttal = await rebut(dispute, bug);
+  bus.write('PROGRESS', `rebuttal by ${dispute.raised_by} on bug #${dispute.bug_id}: ${rebuttal.slice(0, 160)}`, 'qa-lead');
 
   const { message } = await chat({
     model: 'lead',
-    messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: user }],
+    messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: buildJudgePrompt(dispute, bug, rebuttal) }],
   });
 
   const parsed = parseVerdict((message.content ?? '').toString());
@@ -82,15 +101,20 @@ const REBUT_SYSTEM = `You filed a QA finding that another agent is now challengi
 Respond in ONE short paragraph, no preamble: concede if the counter-evidence is technically right
 (and say what the finding really is), or defend it with specifics. Be honest — you are not scored on winning.`;
 
-/** The rebuttal turn — the original filer answers the challenge before the judge rules. */
-async function rebut(dispute: Dispute): Promise<string> {
-  const user = [
-    `You are ${dispute.raised_by}. Your finding: ${dispute.claim}`,
+export function buildRebuttalPrompt(dispute: Dispute, bug?: Bug): string {
+  return [
+    `You are ${dispute.raised_by}. Your finding as filed (bug #${dispute.bug_id}):`,
+    bugBlock(bug),
+    `Summarised claim: ${dispute.claim}`,
     `The challenge from ${dispute.challenged_by}: ${dispute.counter_claim}`,
     `Your rebuttal:`,
   ].join('\n');
+}
+
+/** The rebuttal turn — the original filer answers the challenge before the judge rules. */
+async function rebut(dispute: Dispute, bug?: Bug): Promise<string> {
   try {
-    const { message } = await chat({ model: 'lead', messages: [{ role: 'system', content: REBUT_SYSTEM }, { role: 'user', content: user }] });
+    const { message } = await chat({ model: 'lead', messages: [{ role: 'system', content: REBUT_SYSTEM }, { role: 'user', content: buildRebuttalPrompt(dispute, bug) }] });
     const text = (message.content ?? '').toString().trim();
     return text || '(no rebuttal offered)';
   } catch {
@@ -99,7 +123,7 @@ async function rebut(dispute: Dispute): Promise<string> {
 }
 
 /** Lenient JSON extraction — models occasionally wrap JSON in prose or fences. */
-function parseVerdict(raw: string): Adjudication {
+export function parseVerdict(raw: string): Adjudication {
   let obj: any = {};
   const match = raw.match(/\{[\s\S]*\}/);
   if (match) { try { obj = JSON.parse(match[0]); } catch { /* fall through */ } }

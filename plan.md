@@ -81,10 +81,10 @@ the dashboard phase-bar work comes after the server changes it depends on.
 
 ## Phase 5 — Adjudication rebuttal upgrade
 
-- [ ] Task 5.1: Refactor `adjudicate.ts` prompt construction into exported pure builders (`buildRebuttalPrompt`, `buildJudgePrompt`) and enrich both with the full bug row — including `steps` and `evidence`, which the judge currently never sees.
+- [x] Task 5.1: Refactor `adjudicate.ts` prompt construction into exported pure builders (`buildRebuttalPrompt`, `buildJudgePrompt`) and enrich both with the full bug row — including `steps` and `evidence`, which the judge currently never sees.
   - Verification: unit tests assert both prompts contain the bug's steps and evidence text when present, and degrade gracefully (`(bug row not found)`) when absent.
 
-- [ ] Task 5.2: Add `parseVerdict` unit tests (fenced JSON, prose-wrapped JSON, invalid verdict → UPHELD default with fallback rationale) — locking in the current lenient behaviour before/after the refactor.
+- [x] Task 5.2: Add `parseVerdict` unit tests (fenced JSON, prose-wrapped JSON, invalid verdict → UPHELD default with fallback rationale) — locking in the current lenient behaviour before/after the refactor.
   - Verification: `npm test -- adjudicate` passes with ≥4 parse cases.
 
 ## Phase 6 — Dashboard run-progress UX (progress bar replaces the pulsing dot)
