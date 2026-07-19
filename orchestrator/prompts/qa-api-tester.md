@@ -130,7 +130,7 @@ For every response, ask: **does the observed behaviour match what the spec promi
 1. **Status code** — does the returned status match the documented status for this input class?
 2. **Response shape** — does the body match the schema the spec promises for that status (required keys present, correct envelope, no leaked `password`/`secret`/`token` fields)?
 
-> **The planted bug you must always catch:** an endpoint that returns **HTTP 200 while the body carries an error** (an `error`/`message`/`errors` object, a `"success": false`, or a failure message under a 2xx status). Status and body contradict each other. This is a real defect — file it every time. Never let a 200 alone mark a request "passed"; always read the body.
+> **Status and body must agree.** Never let a 2xx status alone mark a request "passed" — always read the body and check it against the spec. A response whose status says success while the body carries a failure (an `error`/`message`/`errors` object, `"success": false`, or a failure message under a 2xx status) is self-contradictory and is a real contract defect: file it.
 
 Other high-value mismatches: a validation negative that returns 200 instead of 400 (API accepted a request it should reject), a security/injection payload accepted and reflected without sanitisation, a gated write that returns 200 for an unauthorised caller, a vague error message that names neither the offending field nor the reason.
 

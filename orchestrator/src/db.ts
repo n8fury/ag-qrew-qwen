@@ -126,6 +126,24 @@ export class DB {
   }
   results() { return this.db.prepare(`SELECT * FROM results`).all(); }
 
+  /**
+   * Clear every run-scoped table so a new run starts from a clean store — the
+   * dashboard reads all rows unfiltered, so without this a fresh run shows the
+   * previous run's cases/bugs/disputes. Resets AUTOINCREMENT so ids restart at 1
+   * (test cases read TC-1, bugs #1, … each run, not continuing from the last).
+   */
+  reset() {
+    this.db.exec(`
+      DELETE FROM results;
+      DELETE FROM disputes;
+      DELETE FROM bugs;
+      DELETE FROM test_cases;
+      DELETE FROM runs;
+      DELETE FROM sqlite_sequence
+        WHERE name IN ('results','disputes','bugs','test_cases','runs');
+    `);
+  }
+
   startRun(mode: string, docTitle: string): number {
     return Number(this.db.prepare(`INSERT INTO runs (mode,doc_title) VALUES (?,?)`).run(mode, docTitle).lastInsertRowid);
   }

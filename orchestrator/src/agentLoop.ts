@@ -44,12 +44,13 @@ export interface AgentOutcome {
 //   2. once a tool result has been consumed for ≥3 iterations AND is not one of
 //      the 3 most recent results, collapse it in place to a 1–2 line summary.
 // The system prompt and the task message are never touched.
-const MAX_TOOL_RESULT_CHARS = 4000;
-// Keep-last 3 / compact-after 2 (NOT 1/1): the agent is usually still working
+const MAX_TOOL_RESULT_CHARS = 2500;
+// Keep-last 2 / compact-after 2 (NOT 1/1): the agent is usually still working
 // FROM its most recent reads — compacting the test plan away one iteration
 // after reading it forced qa-tc-writer into an endless re-read loop (19×
-// fs_read of the same file in run #6).
-const KEEP_LAST_RESULTS_VERBATIM = 3;
+// fs_read of the same file in run #6). Keep-last was 3; trimmed to 2 as a
+// safe token-reduction knob (still verbatim for ≥2 iterations via compact-after).
+const KEEP_LAST_RESULTS_VERBATIM = 2;
 const COMPACT_AFTER_ITERATIONS = 2;
 
 interface ToolResultRef {

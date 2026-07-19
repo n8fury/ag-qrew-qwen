@@ -23,3 +23,12 @@ node_modules/
 # OS
 .DS_Store
 Thumbs.db
+
+# Internal working docs — kept on disk, out of the public repo
+docs/AG-QREW-QWEN-PLAN.pdf
+docs/HANDOFF.md
+docs/DAY4_CHECKLIST.md
+docs/EXECUTION_PLAN.md
+docs/UPGRADE_PLAN.md
+docs/devpost-draft.md
+docs/video-script.md
