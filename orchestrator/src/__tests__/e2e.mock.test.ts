@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { Bus } from '../bus.js';
+import { Bus, parsePhase } from '../bus.js';
 import { DB } from '../db.js';
 import { runSociety } from '../agents/qaLead.js';
 import type { RunContext } from '../agents/worker.js';
@@ -51,5 +51,12 @@ describe('society pipeline (mock model)', () => {
     for (const agent of ['qa-lead', 'qa-tc-writer', 'qa-api-tester', 'qa-script-writer', 'qa-hawk']) {
       expect(done, `missing DONE from ${agent}`).toContain(agent);
     }
+
+    // PHASE signals: one per pipeline segment, strictly increasing, ending 9/9
+    const phases = bus.readAll().filter((s) => s.type === 'PHASE').map((s) => parsePhase(s.payload));
+    expect(phases.every((p) => p !== null)).toBe(true);
+    const indexes = phases.map((p) => p!.index);
+    expect(indexes).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(phases.at(-1)).toMatchObject({ index: 9, total: 9, id: 'signoff' });
   }, 120_000);
 });

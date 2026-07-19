@@ -66,6 +66,25 @@ export interface SocietyResult {
 
 const noop = () => {};
 
+/**
+ * The fixed pipeline segments the dashboard progress bar renders. One PHASE
+ * signal marks the START of each; the conditional 2d cross-check folds into
+ * `api` so the total never changes mid-run (a bar with a moving total reads
+ * as a bug). Mirrored client-side in dashboard/src/components/ProgressBar.tsx.
+ */
+export const PHASES = [
+  { id: 'env', label: 'Environment gate' },
+  { id: 'plan', label: 'Test plan' },
+  { id: 'approval', label: 'Approval checkpoint' },
+  { id: 'cases', label: 'Test cases' },
+  { id: 'scripts', label: 'E2E scripts' },
+  { id: 'explore', label: 'Exploratory' },
+  { id: 'api', label: 'API tests' },
+  { id: 'adjudicate', label: 'Adjudication' },
+  { id: 'signoff', label: 'Sign-off' },
+] as const;
+export type PhaseId = (typeof PHASES)[number]['id'];
+
 export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Promise<SocietyResult> {
   const log = opts.log ?? ((m: string) => console.log(m));
   const autoApprove = opts.autoApprove ?? true;
@@ -95,9 +114,14 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
   const started = Date.now();
   const runId = db.startRun('society', `${ctx.project} sprint ${ctx.sprint}`);
   bus.write('META', metaPayload(ctx), 'qa-lead');
+  const phase = (id: PhaseId) => {
+    const i = PHASES.findIndex((p) => p.id === id);
+    bus.write('PHASE', `${i + 1}/${PHASES.length}|${id}|${PHASES[i].label}`, 'qa-lead');
+  };
   log(`[run #${runId}] society mode — ${ctx.project} sprint ${ctx.sprint} — modules: ${ctx.modules.join(', ')}`);
 
   // ── Phase 0 — environment gate ──────────────────────────────────────────────
+  phase('env');
   log('[phase 0] environment validation (qa-hawk)…');
   outcomes.push(await runAgent('qa-hawk', deps, hawkEnvTask(ctx), { maxIterations: 20 }));
   const env = latest(bus, 'HAWK-ENV');
@@ -112,11 +136,13 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
   }
 
   // ── Phase 1 — test plan ─────────────────────────────────────────────────────
+  phase('plan');
   log('[phase 1] test plan (qa-lead)…');
   outcomes.push(await runAgent('qa-lead', deps, testPlanTask(ctx), { maxIterations: 20 }));
   const planFile = `test-plan-sprint${ctx.sprint}.txt`;
 
   // ── proceed checkpoint ──────────────────────────────────────────────────────
+  phase('approval');
   if (opts.onCheckpoint) {
     log('[checkpoint] awaiting approval of the test plan…');
     await opts.onCheckpoint(planFile);
@@ -132,12 +158,14 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
   //      files the UI/exploratory bugs.
   //  2c: qa-api-tester last — it reads BUG-FILED and can dispute a UI finding with
   //      its API evidence (the disputing agent MUST run after the one it challenges).
+  phase('cases');
   log('[phase 2a] qa-tc-writer…');
   outcomes.push(await runAgent('qa-tc-writer', deps, tcWriterTask(ctx)));
 
   // Sequential, not Promise.all: two workers sharing one model bucket in parallel
   // trip the free tier's per-minute token window (serial execution was the plan's
   // designated fallback — the signal bus makes the coordination order-independent).
+  phase('scripts');
   log('[phase 2b] qa-script-writer, then qa-hawk explore…');
   // Deterministic DOM probe (option 1): probe the real site here, in plain code, and feed the
   // ground-truth element inventory into the script-writer's task so it grounds selectors in what
@@ -154,8 +182,10 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
   }
   outcomes.push(await runAgent('qa-script-writer', deps, scriptWriterTask(ctx, domInventory)));
   // hawk's explore pass ran at ~76k tokens in real runs — the global guard is enough
+  phase('explore');
   outcomes.push(await runAgent('qa-hawk', deps, hawkExploreTask(ctx)));
 
+  phase('api');
   log('[phase 2c] qa-api-tester (probes API, may dispute UI findings)…');
   outcomes.push(await runAgent('qa-api-tester', deps, apiTesterTask(ctx)));
 
@@ -179,6 +209,7 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
   }
 
   // ── Phase 3 — dispute adjudication (Track-3) ────────────────────────────────
+  phase('adjudicate');
   const open = db.openDisputes();
   log(`[phase 3] adjudicating ${open.length} dispute(s)…`);
   for (const d of open) {
@@ -191,6 +222,7 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
   }
 
   // ── Phase 4 — sign-off ──────────────────────────────────────────────────────
+  phase('signoff');
   log('[phase 4] sign-off (qa-lead)…');
   const summary = buildSummary(db, bus);
   outcomes.push(await runAgent('qa-lead', deps, signOffTask(ctx, summary), { maxIterations: 20 }));

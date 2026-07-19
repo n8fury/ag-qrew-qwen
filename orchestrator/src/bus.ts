@@ -23,10 +23,12 @@ import { EventEmitter } from 'node:events';
  *   RESOLVED     the QA Lead adjudicated a dispute (verdict on the bus)
  *   BLOCKED      an agent cannot proceed (surfaces to dashboard, never crashes)
  *   DONE         an agent finished its whole task
+ *   PHASE        orchestrator marks a pipeline phase start — payload
+ *                "<index>/<total>|<id>|<label>", drives the dashboard progress bar
  */
 export type SignalType =
   | 'META' | 'HAWK-ENV' | 'SECTION-DONE' | 'MODULE-DONE' | 'TC-READY'
-  | 'PROGRESS' | 'BUG-FILED' | 'DISPUTE' | 'RESOLVED' | 'BLOCKED' | 'DONE';
+  | 'PROGRESS' | 'BUG-FILED' | 'DISPUTE' | 'RESOLVED' | 'BLOCKED' | 'DONE' | 'PHASE';
 
 export interface Signal {
   type: SignalType;
@@ -35,6 +37,26 @@ export interface Signal {
   session: string;
   ts: string;
   raw: string;
+}
+
+/** Parsed PHASE payload — what /api/state serves and the progress bar renders. */
+export interface PhaseInfo { index: number; total: number; id: string; label: string; }
+
+/** Parse a PHASE payload ("3/9|approval|Approval checkpoint"); null if malformed. */
+export function parsePhase(payload: string): PhaseInfo | null {
+  const m = payload.match(/^(\d+)\/(\d+)\|([\w-]+)\|(.*)$/);
+  if (!m) return null;
+  return { index: Number(m[1]), total: Number(m[2]), id: m[3], label: m[4] };
+}
+
+/** The most recent well-formed PHASE signal in a session's signal list. */
+export function latestPhase(signals: Signal[]): PhaseInfo | null {
+  for (let i = signals.length - 1; i >= 0; i--) {
+    if (signals[i].type !== 'PHASE') continue;
+    const p = parsePhase(signals[i].payload);
+    if (p) return p;
+  }
+  return null;
 }
 
 export class Bus extends EventEmitter {

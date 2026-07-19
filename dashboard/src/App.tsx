@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { proceed, startRun, useDashboardData } from './api';
+import { ProgressBar } from './components/ProgressBar';
 import { SignalFeed } from './components/SignalFeed';
 import { CaseBrowser } from './components/CaseBrowser';
 import { BugsView } from './components/BugsView';
@@ -12,11 +13,6 @@ export default function App() {
   const { state, report, connected, refreshNow } = useDashboardData();
   const [tab, setTab] = useState<Tab>('cases');
 
-  const status = state.running
-    ? (state.awaitingProceed ? 'awaiting your approval' : 'running')
-    : 'idle';
-  const statusCls = state.running ? (state.awaitingProceed ? 'awaiting' : 'running') : '';
-
   const adjudicated = state.disputes.filter((d) => d.status === 'RESOLVED').length;
   const pass = state.results.filter((r) => r.status === 'PASS').length;
   const fail = state.results.filter((r) => r.status === 'FAIL').length;
@@ -26,7 +22,12 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <span className="brand">AG-QREW on Qwen<small>autonomous QA society · Track 3</small></span>
-        <span className={`status-pill ${statusCls}`}><span className="dot" />{status}</span>
+        <ProgressBar
+          phase={state.phase}
+          running={state.running}
+          awaitingProceed={state.awaitingProceed}
+          verdict={report.metrics?.society?.verdict ?? null}
+        />
         <span className={`conn ${connected ? 'ok' : ''}`}>{connected ? '● live' : '○ reconnecting'}</span>
         <span className="spacer" />
         <button className="btn" disabled={state.running} onClick={async () => { await startRun(); refreshNow(); }}>

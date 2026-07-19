@@ -91,16 +91,16 @@ the dashboard phase-bar work comes after the server changes it depends on.
 
 Pipeline segments (fixed, 9): Env gate → Test plan → Approval → Test cases → Scripts → Explore → API tests → Adjudicate → Sign-off. (The conditional 2d cross-check folds into the API segment.)
 
-- [ ] Task 6.1: Add a `PHASE` signal type to the bus grammar (`bus.ts` union + `docs/signals.md`), payload `"<index>/<total>|<id>|<label>"`; emit it in `agents/qaLead.ts` at each phase transition, including one while paused at the approval checkpoint and a terminal one on finalize.
+- [x] Task 6.1: Add a `PHASE` signal type to the bus grammar (`bus.ts` union + `docs/signals.md`), payload `"<index>/<total>|<id>|<label>"`; emit it in `agents/qaLead.ts` at each phase transition, including one while paused at the approval checkpoint and a terminal one on finalize.
   - Verification: mock E2E asserts the bus contains PHASE signals with strictly increasing indexes ending at `9/9`; `docs/signals.md` documents the type.
 
-- [ ] Task 6.2: Surface phase in the API: `/api/state` gains `phase: { index, total, id, label } | null`, derived from the live session's latest `PHASE` signal (and from the last-session fallback in `signalsForDashboard`, so a finished run still shows a full bar after server restart).
+- [x] Task 6.2: Surface phase in the API: `/api/state` gains `phase: { index, total, id, label } | null`, derived from the live session's latest `PHASE` signal (and from the last-session fallback in `signalsForDashboard`, so a finished run still shows a full bar after server restart).
   - Verification: unit test on the phase-derivation helper given a signal list; `curl /api/state` during a mock run shows the field.
 
-- [ ] Task 6.3: Dashboard `ProgressBar` component: replace the `status-pill` dot in `App.tsx` with a 9-segment bar — completed segments solid, current segment with a subtle sweep animation (no pulsing dot), the Approval segment amber + "awaiting your approval" when `awaitingProceed`, all-solid + verdict tint when finished, empty + "idle" label when no run. Keep phase label + `k/9` text beside the bar; respect `prefers-reduced-motion`.
+- [x] Task 6.3: Dashboard `ProgressBar` component: replace the `status-pill` dot in `App.tsx` with a 9-segment bar — completed segments solid, current segment with a subtle sweep animation (no pulsing dot), the Approval segment amber + "awaiting your approval" when `awaitingProceed`, all-solid + verdict tint when finished, empty + "idle" label when no run. Keep phase label + `k/9` text beside the bar; respect `prefers-reduced-motion`.
   - Verification: `cd dashboard && npm run build` passes; manual check against a mock run shows the bar advancing through segments and the amber approval state at the checkpoint.
 
-- [ ] Task 6.4: Update the inline `MINI_DASHBOARD` fallback in `server.ts` to show the same phase text (simple `k/9 · label` line — no need for the full bar), and rebuild + commit `dashboard/dist`.
+- [x] Task 6.4: Update the inline `MINI_DASHBOARD` fallback in `server.ts` to show the same phase text (simple `k/9 · label` line — no need for the full bar), and rebuild + commit `dashboard/dist`.
   - Verification: with `dashboard/dist` renamed away, `GET /` shows the phase line during a mock run; restored `dist` serves the new bar; `git status` shows the fresh `dist` committed.
 
 ## Phase 7 — Cleanups

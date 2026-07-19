@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { config } from './config.js';
-import { Bus, type Signal } from './bus.js';
+import { Bus, latestPhase, type Signal } from './bus.js';
 import { DB } from './db.js';
 import { runSociety } from './agents/qaLead.js';
 import type { RunContext } from './agents/worker.js';
@@ -52,10 +52,14 @@ function signalsForDashboard(): Signal[] {
 }
 
 app.get('/api/state', (_req: Request, res: Response) => {
+  const signals = signalsForDashboard();
   res.json({
     running,
     awaitingProceed: proceedResolver !== null,
-    signals: signalsForDashboard(),
+    // pipeline position (index/total/id/label) from the latest PHASE signal —
+    // survives server restarts via the last-session fallback in signalsForDashboard
+    phase: latestPhase(signals),
+    signals,
     cases: db.listCases(),
     bugs: db.listBugs(),
     disputes: db.listDisputes(),
@@ -217,7 +221,7 @@ const MINI_DASHBOARD = `<!doctype html><html><head><meta charset="utf8"><title>A
    $('#signals').prepend(d);}
  async function refresh(){const r=await fetch('/api/state').then(r=>r.json());
    $('#proceed').disabled=!r.awaitingProceed; $('#run').disabled=r.running;
-   $('#status').textContent=r.running?(r.awaitingProceed?'awaiting your approval…':'running…'):'idle';
+   $('#status').textContent=r.running?(r.awaitingProceed?'awaiting your approval…':(r.phase?r.phase.index+'/'+r.phase.total+' · '+r.phase.label:'running…')):'idle';
    $('#bugs').innerHTML=r.bugs.map(b=>'<div class="bug"><span class="sev '+b.severity+'">'+b.severity+'</span> '
      +esc(b.title)+' <code>('+b.module+', by '+b.found_by+')</code></div>').join('')||'<em>no bugs yet</em>';
    $('#disputes').innerHTML=r.disputes.map(d=>'<div class="bug" style="border-color:#c084fc">DISPUTE #'+d.id

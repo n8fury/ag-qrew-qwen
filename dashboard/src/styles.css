@@ -42,15 +42,38 @@ code, pre { font-family: var(--mono); }
 .brand { font-weight: 700; font-size: 15px; letter-spacing: .01em; }
 .brand small { color: var(--ink-2); font-weight: 500; margin-left: 8px; }
 
-.status-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+/* ── pipeline progress bar (replaces the old pulsing status dot) ─────────── */
+.phasebar {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
   border: 1px solid var(--border); color: var(--ink-2); background: var(--panel-2);
 }
-.status-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
-.status-pill.running .dot { background: var(--green); animation: pulse 1.2s infinite; }
-.status-pill.awaiting .dot { background: var(--amber); animation: pulse 1.2s infinite; }
+.phasebar .segs { display: inline-flex; gap: 3px; }
+.phasebar .seg {
+  width: 16px; height: 6px; border-radius: 3px;
+  background: var(--border);
+}
+.phasebar .seg.done { background: var(--blue); }
+.phasebar .seg.current {
+  background: linear-gradient(90deg, var(--border) 0%, var(--blue) 50%, var(--border) 100%);
+  background-size: 200% 100%;
+  animation: sweep 1.4s linear infinite;
+}
+.phasebar .seg.current.awaiting {
+  background: var(--amber);
+  animation: none;
+}
+.phasebar.v-pass .seg.done { background: var(--green); }
+.phasebar.v-cond .seg.done { background: var(--amber); }
+.phasebar.v-fail .seg.done { background: var(--red); }
+.phasebar-label { white-space: nowrap; }
+.phasebar-count { color: var(--ink-3); font-weight: 500; }
+@keyframes sweep { from { background-position: 200% 0; } to { background-position: 0% 0; } }
 @keyframes pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  .phasebar .seg.current { animation: none; background: var(--blue); }
+  .btn.warn.armed { animation: none; }
+}
 
 .spacer { flex: 1; }
 

@@ -36,6 +36,7 @@ Signals are session-stamped; stale lines from previous runs are ignored by reade
 | `RESOLVED` | qa-lead | The QA Lead adjudicated a dispute: UPHELD / DOWNGRADED / REJECTED / RECLASSIFIED, with rationale |
 | `BLOCKED` | any agent | An agent cannot proceed. Surfaces on the dashboard and in the sign-off report — never crashes the run |
 | `DONE` | any agent | The agent finished its whole task |
+| `PHASE` | orchestrator | A pipeline phase is starting. Payload `<index>/<total>\|<id>\|<label>` (e.g. `3/9\|approval\|Approval checkpoint`) — drives the dashboard's segmented progress bar; `/api/state` serves the latest one as `phase` |
 
 ## Lifecycle of a run
 

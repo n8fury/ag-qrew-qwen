@@ -2,7 +2,15 @@
 
 export type SignalType =
   | 'META' | 'HAWK-ENV' | 'SECTION-DONE' | 'MODULE-DONE' | 'TC-READY'
-  | 'PROGRESS' | 'BUG-FILED' | 'DISPUTE' | 'RESOLVED' | 'BLOCKED' | 'DONE' | 'HELLO';
+  | 'PROGRESS' | 'BUG-FILED' | 'DISPUTE' | 'RESOLVED' | 'BLOCKED' | 'DONE' | 'PHASE' | 'HELLO';
+
+/** Pipeline position from the orchestrator's PHASE signals (1-based index). */
+export interface PhaseInfo {
+  index: number;
+  total: number;
+  id: string;
+  label: string;
+}
 
 export interface Signal {
   type: SignalType;
@@ -76,6 +84,7 @@ export interface Result {
 export interface State {
   running: boolean;
   awaitingProceed: boolean;
+  phase: PhaseInfo | null;
   signals: Signal[];
   cases: TestCase[];
   bugs: Bug[];
@@ -102,6 +111,7 @@ export interface Report {
 export const EMPTY_STATE: State = {
   running: false,
   awaitingProceed: false,
+  phase: null,
   signals: [],
   cases: [],
   bugs: [],
