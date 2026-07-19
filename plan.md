@@ -56,13 +56,13 @@ the dashboard phase-bar work comes after the server changes it depends on.
 
 ## Phase 3 — Server security
 
-- [ ] Task 3.1: Add a zod schema for `RunContext` and validate `req.body.ctx` in `POST /api/run` (`server.ts`); reject invalid shapes with 400 and require `site` to be an `http(s)` URL. This makes the declared-but-unused `zod` dependency real.
+- [x] Task 3.1: Add a zod schema for `RunContext` and validate `req.body.ctx` in `POST /api/run` (`server.ts`); reject invalid shapes with 400 and require `site` to be an `http(s)` URL. This makes the declared-but-unused `zod` dependency real.
   - Verification: unit test validates a good ctx and rejects `{ site: "file:///etc/passwd" }` and `{ site: "http://169.254.169.254" }` (per Task 4.1's policy); grep shows `zod` imported in `src/`.
 
-- [ ] Task 3.2: Optional token auth: if `AGQREW_TOKEN` is set, all mutating routes (`POST /api/run`, `/api/proceed`, `/api/plan`) require `Authorization: Bearer <token>` (or `X-AGQREW-TOKEN`); 401 otherwise. No-op when unset. Dashboard passes the token from a query param / localStorage if present.
+- [x] Task 3.2: Optional token auth: if `AGQREW_TOKEN` is set, all mutating routes (`POST /api/run`, `/api/proceed`, `/api/plan`) require `Authorization: Bearer <token>` (or `X-AGQREW-TOKEN`); 401 otherwise. No-op when unset. Dashboard passes the token from a query param / localStorage if present.
   - Verification: unit test on the middleware: request without token → 401 when env set, → 200 path when env unset; mock E2E unaffected.
 
-- [ ] Task 3.3: Bind the orchestrator port to loopback by default in `docker-compose.yml` (`127.0.0.1:8787:8787`) with a commented override for remote demos (public bind + `AGQREW_TOKEN`); document both in README's run section.
+- [x] Task 3.3: Bind the orchestrator port to loopback by default in `docker-compose.yml` (`127.0.0.1:8787:8787`) with a commented override for remote demos (public bind + `AGQREW_TOKEN`); document both in README's run section.
   - Verification: `docker compose config` shows the loopback binding; README documents the remote-demo override.
 
 ## Phase 4 — Tool-layer hardening

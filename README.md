@@ -115,6 +115,14 @@ Then open **http://localhost:8787** → *Start run* → approve the plan at the 
 checkpoint and watch the society work (demo-app under test at :3000). Cloud deployment:
 [docs/ecs-setup.md](docs/ecs-setup.md).
 
+> **Security defaults:** both ports bind to loopback only. For a remote demo, change the
+> orchestrator mapping to `"8787:8787"` **and** set `AGQREW_TOKEN=<secret>` in
+> `orchestrator/.env` — the mutating routes (`POST /api/run`, `/api/proceed`, `/api/plan`)
+> then require the token, and the dashboard picks it up from
+> `http://<host>:8787/?token=<secret>` (stored in localStorage, stripped from the URL).
+> Client-supplied run contexts on `POST /api/run` are schema-validated; `site` must be an
+> http(s) URL and metadata/link-local hosts are rejected.
+
 ### Option B — offline proof (no API key)
 
 Verifies the entire society path (orchestration → bug → dispute → rebuttal → adjudication →

@@ -7,6 +7,7 @@ import { Bus, type Signal } from './bus.js';
 import { DB } from './db.js';
 import { runSociety } from './agents/qaLead.js';
 import type { RunContext } from './agents/worker.js';
+import { tokenGuard, validateRunContext } from './security.js';
 
 /**
  * Server (plan task 8) — Express + SSE. Streams the signal bus live, exposes the
@@ -105,7 +106,7 @@ app.get('/api/plan', (_req: Request, res: Response) => {
   });
 });
 
-app.post('/api/plan', (req: Request, res: Response) => {
+app.post('/api/plan', tokenGuard, (req: Request, res: Response) => {
   const file = latestPlanFile();
   if (!file) { res.status(404).json({ ok: false, error: 'no test plan on disk yet' }); return; }
   const content = req.body?.content;
@@ -117,13 +118,22 @@ app.post('/api/plan', (req: Request, res: Response) => {
   res.json({ ok: true, file: file.split(/[\\/]/).pop() });
 });
 
-app.post('/api/proceed', (_req: Request, res: Response) => {
+app.post('/api/proceed', tokenGuard, (_req: Request, res: Response) => {
   if (proceedResolver) { proceedResolver(); proceedResolver = null; res.json({ ok: true }); }
   else res.status(409).json({ ok: false, error: 'no checkpoint awaiting' });
 });
 
-app.post('/api/run', (req: Request, res: Response) => {
+app.post('/api/run', tokenGuard, (req: Request, res: Response) => {
   if (running) { res.status(409).json({ ok: false, error: 'a run is already in progress' }); return; }
+
+  // A client-supplied ctx must pass shape + site-URL policy (http(s) only, no
+  // metadata/link-local hosts) — without this, /api/run is an SSRF proxy.
+  let suppliedCtx: RunContext | undefined;
+  if (req.body?.ctx !== undefined) {
+    const v = validateRunContext(req.body.ctx);
+    if (!v.ok) { res.status(400).json({ ok: false, error: `invalid ctx — ${v.error}` }); return; }
+    suppliedCtx = v.ctx;
+  }
   running = true;
 
   // fresh store per run — the dashboard reads all rows unfiltered, so clear the
@@ -136,7 +146,7 @@ app.post('/api/run', (req: Request, res: Response) => {
   bus.on('signal', broadcast);
 
   const specPath = fileURLToPath(new URL('../../demo-app/openapi.yaml', import.meta.url));
-  const ctx: RunContext = req.body?.ctx ?? {
+  const ctx: RunContext = suppliedCtx ?? {
     project: 'Demo Task Manager', sprint: 1, site: config.demoAppUrl,
     modules: ['auth', 'tasks'],
     creds: { adminEmail: 'admin@demo.test', adminPassword: 'admin123', userEmail: 'user@demo.test', userPassword: 'user123' },

@@ -20,7 +20,12 @@ services:
     container_name: agqrew-orchestrator
     restart: unless-stopped
     ports:
-      - "8787:8787"
+      # loopback-only by default: the control API can start runs (spends API
+      # quota) and reset the store, so it is never exposed publicly unprotected.
+      # Remote demo: change to "8787:8787" AND set AGQREW_TOKEN in
+      # orchestrator/.env — mutating routes then require the token
+      # (open the dashboard as http://<host>:8787/?token=<AGQREW_TOKEN>).
+      - "127.0.0.1:8787:8787"
     env_file:
       - ./orchestrator/.env
     environment:

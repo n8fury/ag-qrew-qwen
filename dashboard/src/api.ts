@@ -13,8 +13,23 @@ export async function fetchReport(): Promise<Report> {
   return r.json();
 }
 
-export const startRun = () => fetch('/api/run', { method: 'POST' });
-export const proceed = () => fetch('/api/proceed', { method: 'POST' });
+/**
+ * Optional auth for servers started with AGQREW_TOKEN (remote demos): the token
+ * arrives once as ?token=… in the URL (then persists in localStorage), and every
+ * mutating request carries it as a header. Local runs without a token are a no-op.
+ */
+function authHeaders(): Record<string, string> {
+  const fromUrl = new URLSearchParams(window.location.search).get('token');
+  if (fromUrl) {
+    localStorage.setItem('agqrew_token', fromUrl);
+    history.replaceState(null, '', window.location.pathname); // keep the secret out of the address bar
+  }
+  const token = localStorage.getItem('agqrew_token');
+  return token ? { 'X-AGQREW-TOKEN': token } : {};
+}
+
+export const startRun = () => fetch('/api/run', { method: 'POST', headers: authHeaders() });
+export const proceed = () => fetch('/api/proceed', { method: 'POST', headers: authHeaders() });
 
 export interface Plan {
   file: string | null;
@@ -31,7 +46,7 @@ export async function fetchPlan(): Promise<Plan> {
 export async function savePlan(content: string): Promise<boolean> {
   const r = await fetch('/api/plan', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ content }),
   });
   return r.ok;
