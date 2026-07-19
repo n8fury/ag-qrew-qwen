@@ -6,6 +6,7 @@ import { DB } from '../db.js';
 import { AgentLoop } from '../agentLoop.js';
 import { allTools } from '../tools/index.js';
 import { writeMetrics, type Metrics } from '../agents/qaLead.js';
+import { detectMode } from '../mode.js';
 import { metaPayload, type RunContext } from '../agents/worker.js';
 
 /**
@@ -106,6 +107,7 @@ export async function runSingle(ctx: RunContext, opts: SingleOptions = {}): Prom
 
   const metrics: Metrics = {
     mode: 'single',
+    modeId: detectMode({ site: ctx.site, docText: ctx.docText, spec: Boolean(ctx.apiSpecPath) }).modeId,
     wallClockMs: Date.now() - started,
     totalTokens: outcome.tokens,
     bugs: bugsCount,

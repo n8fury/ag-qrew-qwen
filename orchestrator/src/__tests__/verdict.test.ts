@@ -89,4 +89,34 @@ describe('computeVerdict', () => {
     db.setBugSeverity(bugId, 'High');
     expect(computeVerdict(db, bus)).toBe('CONDITIONAL PASS');
   });
+
+  // ── mode awareness (plan-general-inputs B.3) ──────────────────────────────────
+  it('design mode COMPLETES on zero results — it never FAILs on emptiness', () => {
+    const { db, bus } = fresh();
+    for (const modeId of ['design', 'design-contract', 'contract-design'] as const) {
+      expect(computeVerdict(db, bus, modeId)).toBe('DESIGN COMPLETE');
+    }
+  });
+
+  it('design mode surfaces a tc-writer finding as WITH FINDINGS', () => {
+    const { db, bus } = fresh();
+    db.fileBug(bug('High'));
+    expect(computeVerdict(db, bus, 'design')).toBe('DESIGN COMPLETE — WITH FINDINGS');
+  });
+
+  it('design mode cannot FAIL — not on a Critical bug, not on a blocker', () => {
+    const { db, bus } = fresh();
+    db.fileBug(bug('Critical'));
+    bus.write('BLOCKED', 'irrelevant to a design run', 'qa-hawk');
+    // a Critical would FAIL an execution run; a design run only reports it as a finding
+    expect(computeVerdict(db, bus, 'design')).toBe('DESIGN COMPLETE — WITH FINDINGS');
+  });
+
+  it('execution modes are unchanged when the modeId is passed explicitly', () => {
+    const { db, bus } = fresh();
+    db.fileBug(bug('Critical'));
+    for (const modeId of ['full', 'execution', 'contract-explore', 'explore'] as const) {
+      expect(computeVerdict(db, bus, modeId)).toBe('FAIL');
+    }
+  });
 });

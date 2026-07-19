@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DB } from '../db.js';
@@ -25,9 +25,43 @@ const ctx: RunContext = {
   docText: 'Sprint 1 — login + task CRUD; title required, max 200 chars; missing/over-length → 400.',
 };
 
+// A spec makes this a genuine `full` run (site + doc + spec) so the api-tester
+// participates and the dispute → adjudication path exercises end-to-end. The mock
+// never reasons over the spec, but the api-tester's bug_file spec-guard parses
+// qa/openapi.yaml — so document POST /api/tasks in the BLOCK form parseSpecPaths
+// reads (flow style would parse as a path with zero methods and reject the bug).
+const specPath = join(dir, 'source-spec.yaml');
+writeFileSync(specPath, [
+  'openapi: 3.0.0',
+  'info:',
+  '  title: Demo Task Manager',
+  '  version: 1.0.0',
+  'paths:',
+  '  /api/auth/login:',
+  '    post:',
+  '      responses:',
+  "        '200':",
+  '          description: ok',
+  '  /api/tasks:',
+  '    get:',
+  '      responses:',
+  "        '200':",
+  '          description: ok',
+  '    post:',
+  '      responses:',
+  "        '400':",
+  '          description: bad',
+  '  /api/tasks/{id}:',
+  '    delete:',
+  '      responses:',
+  "        '200':",
+  '          description: ok',
+  '',
+].join('\n'));
+
 // qaRoot: keep ALL artifacts (sign-off report, metrics.json) in the temp
 // workspace — without it the mock clobbers a real run's files in ./qa.
-const res = await runSociety(ctx, { db, bus, qaRoot: dir, autoApprove: true, enforceEnvGate: true });
+const res = await runSociety(ctx, { db, bus, qaRoot: dir, externalSpecPath: specPath, autoApprove: true, enforceEnvGate: true });
 
 const rebuttalSeen = bus.readAll().some((s) => s.type === 'PROGRESS' && s.payload.startsWith('rebuttal by'));
 const d0 = res.disputes[0];
