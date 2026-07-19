@@ -4,8 +4,9 @@ import { SignalFeed } from './components/SignalFeed';
 import { CaseBrowser } from './components/CaseBrowser';
 import { BugsView } from './components/BugsView';
 import { SignOffView } from './components/SignOffView';
+import { PlanView } from './components/PlanView';
 
-type Tab = 'cases' | 'bugs' | 'signoff';
+type Tab = 'plan' | 'cases' | 'bugs' | 'signoff';
 
 export default function App() {
   const { state, report, connected, refreshNow } = useDashboardData();
@@ -73,6 +74,9 @@ export default function App() {
         <div className="panel">
           <div className="panel-head">
             <div className="tabs">
+              <button className={`tab${tab === 'plan' ? ' active' : ''}`} onClick={() => setTab('plan')}>
+                Test plan{state.awaitingProceed && <span className="count">!</span>}
+              </button>
               <button className={`tab${tab === 'cases' ? ' active' : ''}`} onClick={() => setTab('cases')}>
                 Test cases<span className="count">{state.cases.length}</span>
               </button>
@@ -84,6 +88,7 @@ export default function App() {
               </button>
             </div>
           </div>
+          {tab === 'plan' && <PlanView awaitingProceed={state.awaitingProceed} />}
           {tab === 'cases' && <CaseBrowser cases={state.cases} results={state.results} />}
           {tab === 'bugs' && <BugsView bugs={state.bugs} disputes={state.disputes} />}
           {tab === 'signoff' && <SignOffView report={report} />}

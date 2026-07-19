@@ -1,6 +1,6 @@
 import express, { type Request, type Response } from 'express';
 import { fileURLToPath } from 'node:url';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { config } from './config.js';
 import { Bus, type Signal } from './bus.js';
@@ -78,6 +78,43 @@ app.get('/api/report', (_req: Request, res: Response) => {
   let metrics: unknown = null;
   try { metrics = JSON.parse(readIf(join(qaDir, 'metrics.json')) ?? 'null'); } catch { /* mid-write */ }
   res.json({ signOff: readIf(join(qaDir, 'sign-off-report.txt')), metrics });
+});
+
+// Test plan — view/edit from the dashboard. The file path is server-controlled
+// (latest qa/test-plan-sprint*.txt); the client only ever sends content, so this
+// is not an arbitrary-write endpoint. Editing is most meaningful while the run is
+// paused at the proceed checkpoint: workers fs_read the plan AFTER approval.
+function latestPlanFile(): string | null {
+  const qaDir = dirname(config.busPath);
+  if (!existsSync(qaDir)) return null;
+  const plans = readdirSync(qaDir)
+    .filter((f) => /^test-plan-sprint\d+\.txt$/.test(f))
+    .sort((a, b) => Number(b.match(/\d+/)![0]) - Number(a.match(/\d+/)![0]));
+  return plans.length ? join(qaDir, plans[0]) : null;
+}
+
+app.get('/api/plan', (_req: Request, res: Response) => {
+  const file = latestPlanFile();
+  if (!file) { res.json({ file: null, content: null, editable: false }); return; }
+  res.json({
+    file: file.split(/[\\/]/).pop(),
+    content: readFileSync(file, 'utf8'),
+    // editable any time, but the checkpoint is when edits shape the run
+    editable: true,
+    awaitingProceed: proceedResolver !== null,
+  });
+});
+
+app.post('/api/plan', (req: Request, res: Response) => {
+  const file = latestPlanFile();
+  if (!file) { res.status(404).json({ ok: false, error: 'no test plan on disk yet' }); return; }
+  const content = req.body?.content;
+  if (typeof content !== 'string' || !content.trim()) {
+    res.status(400).json({ ok: false, error: 'body must be { content: string } (non-empty)' });
+    return;
+  }
+  writeFileSync(file, content);
+  res.json({ ok: true, file: file.split(/[\\/]/).pop() });
 });
 
 app.post('/api/proceed', (_req: Request, res: Response) => {

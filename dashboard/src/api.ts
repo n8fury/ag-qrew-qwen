@@ -16,6 +16,27 @@ export async function fetchReport(): Promise<Report> {
 export const startRun = () => fetch('/api/run', { method: 'POST' });
 export const proceed = () => fetch('/api/proceed', { method: 'POST' });
 
+export interface Plan {
+  file: string | null;
+  content: string | null;
+  awaitingProceed?: boolean;
+}
+
+export async function fetchPlan(): Promise<Plan> {
+  const r = await fetch('/api/plan');
+  if (!r.ok) return { file: null, content: null };
+  return r.json();
+}
+
+export async function savePlan(content: string): Promise<boolean> {
+  const r = await fetch('/api/plan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+  return r.ok;
+}
+
 /**
  * Single data hook: /api/state is the source of truth (poll + refetch), the SSE
  * stream is the live trigger — every incoming signal debounces a refetch, so the
