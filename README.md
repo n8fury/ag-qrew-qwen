@@ -170,6 +170,13 @@ baseline.
 
 ## Architecture
 
+**Deployment view** — how the browser, the ECS-hosted containers, the SQLite store, and
+Alibaba Cloud Model Studio connect:
+
+![Deployment architecture — browser → Alibaba Cloud ECS (orchestrator + demo-app + SQLite) → Model Studio](docs/architecture-deployment.png)
+
+**Pipeline view** — how a run flows through the phases:
+
 ```mermaid
 flowchart TD
     USER([requirements doc]) --> LEAD[QA Lead · qwen-max]
