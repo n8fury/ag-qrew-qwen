@@ -11,6 +11,19 @@ import { ActivityStrip } from './components/ActivityStrip';
 
 type Tab = 'config' | 'plan' | 'cases' | 'bugs' | 'signoff';
 
+const TILE_TIPS = {
+  cases:
+    'Structured test cases written by qa-tc-writer from the approved test plan and persisted to SQLite through the tc_store tool. They are the checklist the other agents execute.',
+  bugs:
+    'Defects filed by worker agents (qa-api-tester, qa-script-writer, qa-hawk) via the bug_file tool when a test or exploration finds a failure. The sub-line counts Critical/High severity.',
+  disputes:
+    'Conflict resolution (Track 3): when one agent’s evidence contradicts another’s bug, it calls raise_dispute. After one rebuttal round the QA Lead adjudicates — UPHELD, DOWNGRADED, REJECTED, or RECLASSIFIED.',
+  results:
+    'Test executions recorded via result_record — one PASS / FAIL / BLOCKED / SKIP entry per test-case run (Playwright and API tests). These feed the final sign-off verdict.',
+  tokens:
+    'Total Qwen tokens consumed by the whole agent society across all five agents. Live tally while a run is in progress; final value comes from qa/metrics.json for comparison with the single-agent baseline.',
+} as const;
+
 export default function App() {
   const { state, report, connected, refreshNow } = useDashboardData();
   const [tab, setTab] = useState<Tab>('config');
@@ -52,27 +65,27 @@ export default function App() {
       {state.running && state.activity && <ActivityStrip activity={state.activity} />}
 
       <div className="tiles">
-        <div className="tile">
+        <div className="tile" tabIndex={0} data-tip={TILE_TIPS.cases}>
           <div className="label">Test cases</div>
           <div className="value">{state.cases.length}</div>
           <div className="sub">stored via tc_store</div>
         </div>
-        <div className="tile">
+        <div className="tile" tabIndex={0} data-tip={TILE_TIPS.bugs}>
           <div className="label">Bugs filed</div>
           <div className="value">{state.bugs.length}</div>
           <div className="sub">{state.bugs.filter((b) => b.severity === 'Critical' || b.severity === 'High').length} critical/high</div>
         </div>
-        <div className="tile">
+        <div className="tile" tabIndex={0} data-tip={TILE_TIPS.disputes}>
           <div className="label">Disputes</div>
           <div className="value">{state.disputes.length}<small>{adjudicated} adjudicated</small></div>
           <div className="sub">conflict resolution</div>
         </div>
-        <div className="tile">
+        <div className="tile" tabIndex={0} data-tip={TILE_TIPS.results}>
           <div className="label">Results</div>
           <div className="value">{pass}<small>pass</small></div>
           <div className="sub">{fail} fail · {state.results.length} total</div>
         </div>
-        <div className="tile">
+        <div className="tile" tabIndex={0} data-tip={TILE_TIPS.tokens}>
           <div className="label">Tokens (society)</div>
           <div className="value">{tokens != null ? (tokens / 1000).toFixed(0) + 'k' : '—'}</div>
           <div className="sub">{live != null ? 'live — run in progress' : 'from qa/metrics.json'}</div>

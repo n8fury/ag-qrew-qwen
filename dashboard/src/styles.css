@@ -126,6 +126,33 @@ code, pre { font-family: var(--mono); }
 .tile .value small { font-size: 12px; font-weight: 500; color: var(--ink-2); margin-left: 6px; }
 .tile .sub { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
 
+/* tile tooltips — data-tip text shown on hover / keyboard focus */
+.tile[data-tip] { position: relative; cursor: help; outline: none; }
+.tile[data-tip]:focus-visible { border-color: var(--accent); }
+.tile[data-tip] .label::after {
+  content: 'ⓘ'; margin-left: 5px;
+  color: var(--ink-3); font-size: 10px; text-transform: none;
+}
+.tile[data-tip]:hover .label::after,
+.tile[data-tip]:focus-visible .label::after { color: var(--blue); }
+.tile[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 30;
+  width: max-content; max-width: 300px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--ink-2); font-size: 12px; line-height: 1.5; font-weight: 400;
+  padding: 8px 11px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .5);
+  opacity: 0; visibility: hidden;
+  transition: opacity .12s ease .08s, visibility .12s ease .08s;
+  pointer-events: none;
+}
+.tile[data-tip]:hover::after,
+.tile[data-tip]:focus-visible::after { opacity: 1; visibility: visible; }
+/* keep the right-most tiles' tooltips inside the viewport */
+.tile[data-tip]:last-child::after,
+.tile[data-tip]:nth-last-child(2)::after { left: auto; right: 0; }
+
 /* ── layout ──────────────────────────────────────────────────────────────── */
 .main {
   display: grid; grid-template-columns: minmax(340px, 2fr) 3fr;
