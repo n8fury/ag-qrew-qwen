@@ -272,11 +272,13 @@ A React dashboard (Vite, [`dashboard/`](dashboard/)) served by the orchestrator 
 
 The build (`dashboard/dist`) is committed, so it works from a fresh clone with zero extra
 steps; if the build is missing, `server.ts` falls back to an inline zero-dependency page. All
-data views read the same SQLite store + signal bus the agents write — screenshots below are
-from real Qwen runs.
+data views read the same SQLite store + signal bus the agents write — the hero screenshot at
+the top and the four tabs below are all from **one real Qwen run**.
 
-| Bugs & adjudicated disputes | Sign-off & metrics |
+| Configure — bring your own target | Test plan — in-place edit at the checkpoint |
 |---|---|
+| ![Configure tab with run inputs and live capability preview](docs/screenshots/configure.png) | ![Test-plan tab with in-place editing at the approval checkpoint](docs/screenshots/testplan.png) |
+| **Bugs & adjudicated disputes** | **Sign-off & metrics** |
 | ![Bug list with dispute badges and adjudications](docs/screenshots/bugs-disputes.png) | ![Sign-off report with metrics](docs/screenshots/sign-off.png) |
 
 To hack on it: `cd dashboard && npm install && npm run dev` (proxies `/api` to :8787), then
