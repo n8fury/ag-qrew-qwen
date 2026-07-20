@@ -472,7 +472,7 @@ Model Studio** console (Singapore) so the key matches the `dashscope-intl` endpo
 **Live ECS deployment (submission proof):** the full society runs on an Alibaba Cloud ECS
 instance (2 vCPU / 4 GiB, Ubuntu 24.04, Docker Compose) — setup guide:
 [docs/ecs-setup.md](docs/ecs-setup.md). Deployment-proof recording (console + SSH +
-live dashboard on the public IP): _link pending_. <!-- TODO(day-4): paste proof recording URL -->
+live dashboard on the public IP): [watch here](https://drive.google.com/file/d/1NrEuxRFFbIUZIkxnlV3bFVuSxRcPZoTz/view?usp=sharing).
 
 <details>
 <summary><b>Quota debugging</b> — which Qwen models can your key actually use?</summary>
@@ -523,7 +523,7 @@ pipeline.
 - ✅ Context management in AgentLoop — full society runs with **no worker over 150k tokens**.
 - ✅ React dashboard (test-case browser, dispute/adjudication badges, live SSE feed, sign-off view) + inline fallback.
 - ✅ Docker Compose (full society run verified inside compose), architecture diagram (PNG), deploy scripts.
-- ⏳ Alibaba Cloud ECS deployment + proof recording.
+- ✅ Alibaba Cloud ECS deployment + proof recording.
 
 ## License
 
