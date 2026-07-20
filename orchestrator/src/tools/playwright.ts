@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { createRequire } from 'node:module';
 import { resolve, join, dirname } from 'node:path';
 import { mkdirSync, existsSync } from 'node:fs';
 import { chromium } from 'playwright';
@@ -8,11 +9,15 @@ import { chat } from '../qwen.js';
 import { resolveSandboxed } from './fs.js';
 
 const execP = promisify(execFile);
-// On Windows, npx is npx.cmd — spawning a .cmd without a shell throws (EINVAL/ENOENT),
-// so run through the shell there. Paths under qa/ contain no spaces or shell metachars.
-const IS_WIN = process.platform === 'win32';
-const exec = (cmd: string, args: string[], opts: { timeout: number; maxBuffer: number }) =>
-  execP(cmd, args, { ...opts, shell: IS_WIN });
+// Never spawn through a shell (DEP0190 — plan F.5). The old Windows path ran
+// `npx …` via shell:true because npx.cmd can't be spawned directly; instead,
+// resolve the actual JS entry points and run them with the current Node binary —
+// no shell, no arg concatenation, and it skips npx's startup overhead too.
+const require_ = createRequire(import.meta.url);
+const TSX_CLI = require_.resolve('tsx/cli');
+const PLAYWRIGHT_CLI = join(dirname(require_.resolve('playwright/package.json')), 'cli.js');
+const exec = (jsEntry: string, args: string[], opts: { timeout: number; maxBuffer: number }) =>
+  execP(process.execPath, [jsEntry, ...args], opts);
 const RUN_TIMEOUT_MS = 180_000;
 const MAX_OUTPUT_CHARS = 5000;
 
@@ -30,7 +35,7 @@ let chromiumInstall: Promise<void> | null = null;
  */
 function ensureChromium(): Promise<void> {
   if (!chromiumInstall) {
-    chromiumInstall = exec('npx', ['playwright', 'install', 'chromium'], {
+    chromiumInstall = exec(PLAYWRIGHT_CLI, ['install', 'chromium'], {
       timeout: INSTALL_TIMEOUT_MS,
       maxBuffer: 64 * 1024 * 1024,
     })
@@ -77,7 +82,7 @@ export function playwrightRunTool(qaRoot: string): ToolDef {
       if (!existsSync(target)) {
         return `ERROR: spec file qa/${args.specPath} does not exist — fs_write it first (check the exact path; nothing was executed).`;
       }
-      const runSpec = () => exec('npx', ['tsx', target], { timeout: RUN_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 });
+      const runSpec = () => exec(TSX_CLI, [target], { timeout: RUN_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 });
       const pass = (stdout: string, stderr: string, note = '') =>
         `PASS (exit 0${note})\n${(stdout + (stderr ? `\n${stderr}` : '')).slice(0, MAX_OUTPUT_CHARS) || '(no output)'}`;
       const fail = (err: any) => {

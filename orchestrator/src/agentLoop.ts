@@ -244,6 +244,7 @@ export class AgentLoop {
         res = await chat({ model, messages, tools: toolSchemas });
       } catch (err: any) {
         bus.write('BLOCKED', `${name} API error: ${err.message}`, name);
+        bus.activity({ agent: name, iter, maxIter: maxIterations, tokensAgent: tokens, tokensDelta: 0, calls: [], state: 'blocked' });
         return { name, status: 'error', iterations: iter, tokens, finalText: err.message };
       }
       tokens += res.usageTokens;
@@ -309,7 +310,14 @@ export class AgentLoop {
           });
         }
         console.log(`  [${name}] iter ${iter}/${maxIterations} · +${res.usageTokens} tok (total ${tokens}) · ${trace.join(' ; ')}`);
-        if (tokens > maxTokens) {
+        // Ephemeral telemetry (Phase F): one in-memory activity event per
+        // iteration — plain hints (no loop-guard annotations), never on the file.
+        const exhausted = tokens > maxTokens;
+        bus.activity({
+          agent: name, iter, maxIter: maxIterations, tokensAgent: tokens,
+          tokensDelta: res.usageTokens, calls: callRef.hints.slice(), state: exhausted ? 'blocked' : 'working',
+        });
+        if (exhausted) {
           bus.write('BLOCKED', `${name} exceeded token budget (${tokens})`, name);
           return { name, status: 'exhausted', iterations: iter, tokens, finalText: '' };
         }
@@ -320,10 +328,12 @@ export class AgentLoop {
       const text = (msg.content ?? '').toString();
       console.log(`  [${name}] iter ${iter}/${maxIterations} · +${res.usageTokens} tok (total ${tokens}) · done (text turn)`);
       bus.write('DONE', name, name);
+      bus.activity({ agent: name, iter, maxIter: maxIterations, tokensAgent: tokens, tokensDelta: res.usageTokens, calls: [], state: 'done' });
       return { name, status: 'done', iterations: iter, tokens, finalText: text };
     }
 
     bus.write('BLOCKED', `${name} hit iteration cap`, name);
+    bus.activity({ agent: name, iter: maxIterations, maxIter: maxIterations, tokensAgent: tokens, tokensDelta: 0, calls: [], state: 'blocked' });
     return { name, status: 'exhausted', iterations: maxIterations, tokens, finalText: '' };
   }
 }

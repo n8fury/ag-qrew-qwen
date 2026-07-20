@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { EMPTY_STATE, type Report, type RunCtx, type RunMode, type Signal, type State } from './types';
+import { EMPTY_STATE, type ActivityEvent, type Report, type RunCtx, type RunMode, type Signal, type State } from './types';
 
 export async function fetchState(): Promise<State> {
   const r = await fetch('/api/state');
@@ -133,8 +133,15 @@ export function useDashboardData(pollMs = 5000) {
     es.onopen = () => setConnected(true);
     es.onerror = () => setConnected(false);
     es.onmessage = (e) => {
-      const sig = JSON.parse(e.data) as Signal;
-      if (sig.type === 'HELLO') { setConnected(true); return; }
+      const msg = JSON.parse(e.data) as Signal | { type: 'ACTIVITY'; activity: ActivityEvent };
+      if (msg.type === 'HELLO') { setConnected(true); return; }
+      // Ephemeral per-iteration telemetry: update the strip/token tile directly —
+      // no store refetch (nothing persistent changed on an activity heartbeat).
+      if (msg.type === 'ACTIVITY') {
+        const a = (msg as { activity: ActivityEvent }).activity;
+        setState((s) => ({ ...s, activity: a, liveTokens: a.tokensRun }));
+        return;
+      }
       if (debounce.current) clearTimeout(debounce.current);
       debounce.current = setTimeout(refresh, 250);
     };

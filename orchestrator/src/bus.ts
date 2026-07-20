@@ -42,6 +42,27 @@ export interface Signal {
 /** Parsed PHASE payload — what /api/state serves and the progress bar renders. */
 export interface PhaseInfo { index: number; total: number; id: string; label: string; }
 
+/**
+ * Ephemeral per-iteration telemetry (plan-general-inputs Phase F). Emitted
+ * IN-MEMORY ONLY via `bus.activity()` — never appended to the bus file: the
+ * file is the persistent protocol log, and per-iteration heartbeats would
+ * bloat it. The server rebroadcasts these over SSE; nothing else consumes them.
+ */
+export interface ActivityEvent {
+  agent: string;
+  iter: number;
+  maxIter: number;
+  /** the agent's cumulative tokens after this iteration */
+  tokensAgent: number;
+  /** tokens this iteration cost */
+  tokensDelta: number;
+  /** short tool-call hints for this iteration, e.g. ["tc_store auth"] */
+  calls: string[];
+  state: 'working' | 'done' | 'blocked';
+  /** run-level running total: every agent's latest cumulative count, summed */
+  tokensRun: number;
+}
+
 /** Parse a PHASE payload ("3/9|approval|Approval checkpoint"); null if malformed. */
 export function parsePhase(payload: string): PhaseInfo | null {
   const m = payload.match(/^(\d+)\/(\d+)\|([\w-]+)\|(.*)$/);
@@ -65,6 +86,24 @@ export class Bus extends EventEmitter {
     const dir = dirname(path);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     if (!existsSync(path)) writeFileSync(path, '');
+  }
+
+  // Per-agent latest cumulative token counts for the run-level total. A Bus is
+  // fresh per run, so summing the map = finished agents' final counts + every
+  // live agent's current count (parallel groups sum correctly by construction).
+  private agentTokens = new Map<string, number>();
+
+  /**
+   * Emit ephemeral activity telemetry — in-memory only, NOTHING is appended to
+   * the bus file. Computes and attaches the run-level running token total.
+   */
+  activity(evt: Omit<ActivityEvent, 'tokensRun'>): ActivityEvent {
+    this.agentTokens.set(evt.agent, evt.tokensAgent);
+    let tokensRun = 0;
+    for (const t of this.agentTokens.values()) tokensRun += t;
+    const full: ActivityEvent = { ...evt, tokensRun };
+    this.emit('activity', full);
+    return full;
   }
 
   /** Append a signal. Returns the formatted line. */

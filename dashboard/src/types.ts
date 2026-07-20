@@ -110,12 +110,28 @@ export interface RunCtx {
   priorityOracles?: { api?: string; explore?: string };
 }
 
+/** Ephemeral per-iteration agent telemetry (mirrors orchestrator/src/bus.ts ActivityEvent). */
+export interface ActivityEvent {
+  agent: string;
+  iter: number;
+  maxIter: number;
+  tokensAgent: number;
+  tokensDelta: number;
+  calls: string[];
+  state: 'working' | 'done' | 'blocked';
+  tokensRun: number;
+}
+
 export interface State {
   running: boolean;
   awaitingProceed: boolean;
   phase: PhaseInfo | null;
   /** null once the server restarts — the progress bar falls back to all-active rendering */
   mode: ModeState | null;
+  /** latest agent activity — non-null only mid-run; SSE ACTIVITY events update it live */
+  activity: ActivityEvent | null;
+  /** running run-token total mid-run; null after the run (metrics.json takes over) */
+  liveTokens: number | null;
   signals: Signal[];
   cases: TestCase[];
   bugs: Bug[];
@@ -144,6 +160,8 @@ export const EMPTY_STATE: State = {
   awaitingProceed: false,
   phase: null,
   mode: null,
+  activity: null,
+  liveTokens: null,
   signals: [],
   cases: [],
   bugs: [],

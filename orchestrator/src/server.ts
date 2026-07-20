@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { config } from './config.js';
-import { Bus, latestPhase, type Signal } from './bus.js';
+import { Bus, latestPhase, type ActivityEvent, type Signal } from './bus.js';
 import { DB } from './db.js';
 import { runSociety } from './agents/qaLead.js';
 import type { RunContext } from './agents/worker.js';
@@ -31,6 +31,20 @@ function broadcast(sig: Signal) {
   for (const res of sseClients) res.write(line);
 }
 bus.on('signal', broadcast);
+
+/**
+ * Ephemeral agent telemetry (Phase F): keep only the LATEST activity event in
+ * memory (so a mid-run page refresh recovers state via /api/state) and
+ * rebroadcast each one over SSE as { type: 'ACTIVITY', activity } — never
+ * persisted anywhere; cleared when the run finishes (metrics.json takes over).
+ */
+let activity: ActivityEvent | null = null;
+function onActivity(evt: ActivityEvent) {
+  activity = evt;
+  const line = `data: ${JSON.stringify({ type: 'ACTIVITY', activity: evt })}\n\n`;
+  for (const res of sseClients) res.write(line);
+}
+bus.on('activity', onActivity);
 
 // Keepalive: proxies (the ECS demo sits behind one) drop idle event streams;
 // an SSE comment every 25s keeps the connection warm and is ignored by clients.
@@ -77,6 +91,10 @@ app.get('/api/state', (_req: Request, res: Response) => {
     // active run's mode (modeId/label/phases) for the mode-aware bar; null after
     // a server restart → bar falls back to all-active rendering
     mode: modeState(activeMode),
+    // latest agent activity + live run-token total — non-null only mid-run, so a
+    // page refresh recovers the strip; metrics.json takes over after the run
+    activity,
+    liveTokens: activity?.tokensRun ?? null,
     signals,
     cases: db.listCases(),
     bugs: db.listBugs(),
@@ -225,10 +243,13 @@ app.post('/api/run', tokenGuard, (req: Request, res: Response) => {
   // previous run's cases/bugs/disputes/results before a new one starts.
   db.reset();
 
-  // fresh bus per run so the session is clean; re-wire SSE to it.
+  // fresh bus per run so the session is clean; re-wire SSE + telemetry to it.
   bus.off('signal', broadcast);
+  bus.off('activity', onActivity);
   bus = new Bus(config.busPath, `web-${new Date().toISOString().replace(/[:.]/g, '-')}`);
   bus.on('signal', broadcast);
+  bus.on('activity', onActivity);
+  activity = null;
 
   const ctx: RunContext = suppliedCtx ?? demoContext(config.demoAppUrl);
 
@@ -262,7 +283,7 @@ app.post('/api/run', tokenGuard, (req: Request, res: Response) => {
   })
     .then((r) => console.log(`[web] run finished — verdict ${r.verdict}`))
     .catch((e) => console.error('[web] run failed:', e))
-    .finally(() => { running = false; proceedResolver = null; });
+    .finally(() => { running = false; proceedResolver = null; activity = null; });
 
   res.json({ ok: true, started: true, mode: modeState(activeMode) });
 });

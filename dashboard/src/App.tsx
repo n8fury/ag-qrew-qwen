@@ -7,6 +7,7 @@ import { BugsView } from './components/BugsView';
 import { SignOffView } from './components/SignOffView';
 import { PlanView } from './components/PlanView';
 import { RunConfigView } from './components/RunConfigView';
+import { ActivityStrip } from './components/ActivityStrip';
 
 type Tab = 'config' | 'plan' | 'cases' | 'bugs' | 'signoff';
 
@@ -17,7 +18,9 @@ export default function App() {
   const adjudicated = state.disputes.filter((d) => d.status === 'RESOLVED').length;
   const pass = state.results.filter((r) => r.status === 'PASS').length;
   const fail = state.results.filter((r) => r.status === 'FAIL').length;
-  const tokens = report.metrics?.society?.totalTokens;
+  // live run total while running (SSE ACTIVITY), metrics.json once finished
+  const live = state.running ? state.liveTokens : null;
+  const tokens = live ?? report.metrics?.society?.totalTokens;
 
   return (
     <div className="app">
@@ -46,6 +49,8 @@ export default function App() {
         </button>
       </header>
 
+      {state.running && state.activity && <ActivityStrip activity={state.activity} />}
+
       <div className="tiles">
         <div className="tile">
           <div className="label">Test cases</div>
@@ -70,7 +75,7 @@ export default function App() {
         <div className="tile">
           <div className="label">Tokens (society)</div>
           <div className="value">{tokens != null ? (tokens / 1000).toFixed(0) + 'k' : '—'}</div>
-          <div className="sub">from qa/metrics.json</div>
+          <div className="sub">{live != null ? 'live — run in progress' : 'from qa/metrics.json'}</div>
         </div>
       </div>
 

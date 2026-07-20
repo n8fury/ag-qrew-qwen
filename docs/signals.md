@@ -38,6 +38,12 @@ Signals are session-stamped; stale lines from previous runs are ignored by reade
 | `DONE` | any agent | The agent finished its whole task |
 | `PHASE` | orchestrator | A pipeline phase is starting. Payload `<index>/<total>\|<id>\|<label>` (e.g. `3/9\|approval\|Approval checkpoint`) — drives the dashboard's segmented progress bar; `/api/state` serves the latest one as `phase`. **Only active phases emit a signal**: with a partial input set (see the mode matrix in the README's "Bring your own target"), skipped phases emit no `PHASE` at all, and `index`/`total` count active phases only — a doc-only design run goes `1/4 … 4/4`, never `x/9` |
 
+> **Not a bus signal:** the dashboard's SSE stream (`/api/stream`) additionally carries
+> `{ type: "ACTIVITY", activity: … }` messages — ephemeral per-iteration agent telemetry
+> (current agent, iteration, tokens, tool hints) emitted in-memory by the orchestrator.
+> These are **never written to the bus file**: the file stays the persistent protocol log,
+> heartbeats stay ephemeral. `/api/state` serves only the latest one, mid-run.
+
 ## Lifecycle of a run
 
 ```
