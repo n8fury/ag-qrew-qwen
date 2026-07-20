@@ -8,17 +8,21 @@ import type { ToolDef } from '../agentLoop.js';
  * coverage matrix, sign-off report. Any path outside qa/ is rejected.
  */
 export function resolveSandboxed(qaRoot: string, relPath: string): string {
-  // Conservative charset: playwright_run passes the resolved path through a
-  // shell on Windows (npx is npx.cmd), so `&`, `;`, quotes, spaces … in an
-  // agent-chosen filename would be command injection. Nothing legitimate an
-  // agent writes needs them.
-  if (!/^[A-Za-z0-9._\\/-]+$/.test(relPath)) {
+  // Normalise Windows-style separators to '/' up front. On Linux '\' is a legal
+  // filename character, so a traversal like "..\..\etc" would otherwise survive
+  // the escape check below as one literal in-sandbox name instead of resolving
+  // out — the containment test must behave identically on every OS.
+  relPath = relPath.replace(/\\/g, '/');
+  // Conservative charset: agent-chosen filenames flow into resolved paths, so
+  // `&`, `;`, quotes, spaces … (command-injection shapes) are refused outright.
+  // Nothing legitimate an agent writes needs them.
+  if (!/^[A-Za-z0-9._/-]+$/.test(relPath)) {
     throw new Error(`path contains unsupported characters (allowed: letters, digits, . _ - and separators): ${relPath}`);
   }
   const root = resolve(qaRoot);
   // Agents address artefacts as "qa/<path>" (how tasks and bus signals name them),
   // while the schema says paths are relative to qa/ — accept both forms.
-  const rel = relPath.replace(/^qa[\\/]+/i, '');
+  const rel = relPath.replace(/^qa\/+/i, '');
   const target = resolve(root, rel);
   if (target !== root && !target.startsWith(root + sep)) {
     throw new Error(`path escapes the qa/ sandbox: ${relPath}`);
