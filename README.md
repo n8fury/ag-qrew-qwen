@@ -40,6 +40,7 @@ executed Playwright scripts, API tests, filed bugs, and a sign-off report, with
 - [Why this fits Track 3 (Agent Society)](#why-this-fits-track-3-agent-society)
 - [Architecture](#architecture)
   - [The five agents](#the-five-agents)
+  - [Coverage heuristics](#coverage-heuristics)
   - [Conflict resolution — the differentiator](#conflict-resolution--the-differentiator)
 - [The dashboard](#the-dashboard)
 - [Bring your own target](#bring-your-own-target)
@@ -49,6 +50,7 @@ executed Playwright scripts, API tests, filed bugs, and a sign-off report, with
 - [Repository structure](#repository-structure)
 - [Documentation](#documentation)
 - [Alibaba Cloud usage](#alibaba-cloud-usage)
+- [Troubleshooting](#troubleshooting)
 - [Attribution](#attribution)
 - [Project status](#project-status)
 - [License](#license)
@@ -215,6 +217,23 @@ flowchart TD
 | **qa-api-tester** | qwen-plus | HTTP tests from the OpenAPI spec; files contract bugs | http_request, bug_file, result_record, raise_dispute |
 | **qa-script-writer** | qwen-plus | Playwright-as-a-library specs, executed via `playwright_run` | playwright_run, bug_file, result_record, raise_dispute |
 | **qa-hawk** | qwen-plus (+ qwen-vl-max) | Smoke + SFDIPOT exploratory testing; screenshot analysis | browser_snapshot, http_request, bug_file, raise_dispute |
+
+### Coverage heuristics
+
+Two session-based-testing heuristics carry over intact from the original AG-QREW pipeline and
+drive how the society decides *what to test* and *what counts as a bug*:
+
+- **SFDIPOT** (*Structure · Function · Data · Interface · Platform · Operations · Time*) —
+  coverage. The QA Lead's test plan gives every in-scope feature an SFDIPOT coverage map
+  ([prompts/qa-lead.md](orchestrator/prompts/qa-lead.md)), and qa-hawk's explore mode works
+  through the dimensions per module, ticking them in its session charter and reporting
+  `sfdipot: S✓F✓D✓I✓P✓O✓T✓` on the bus ([prompts/qa-hawk.md](orchestrator/prompts/qa-hawk.md)).
+- **FEW HICCUPPS** (*Familiar · Explainability · World · History · Image · Comparable products ·
+  Claims · User · Product · Purpose · Standards*) — oracles. Every filed bug must cite the
+  oracle that makes the observed behaviour a *failure* rather than a surprise. At sign-off the
+  QA Lead runs an **oracle audit**: any bug whose oracle doesn't quote a violated requirement
+  or spec line is marked `UNVERIFIED` and excluded from the decision-gate counts —
+  false-positive discipline, enforced structurally.
 
 ### Conflict resolution — the differentiator
 
@@ -462,6 +481,21 @@ console, don't retry).
 
 ---
 
+## Troubleshooting
+
+| Problem | Likely cause | Fix |
+|---|---|---|
+| Startup fails asking for `DASHSCOPE_API_KEY` | `.env` missing from `orchestrator/` | `cp .env.example orchestrator/.env`, paste your **International** Model Studio key, then de-risk with `npx tsx src/smoke.ts` |
+| HTTP **429** on model calls | free-tier per-minute rate window exhausted | wait — the client retries with backoff automatically |
+| HTTP **403** on a model | that model's quota bucket isn't enabled for your key | fix in the Model Studio console (don't retry); `npx tsx src/probeModels.ts` prints per-model access — see [quota debugging](#alibaba-cloud-usage) |
+| Specs fail with *"Executable doesn't exist"* | Chromium not installed | the tool layer auto-installs it on first need; manual fallback: `npx playwright install chromium` |
+| **401** on Start/Proceed from the dashboard | `AGQREW_TOKEN` is set on the server but the browser has no token | open the dashboard once as `http://<host>:8787/?token=<secret>` |
+| Run **FAILs at Phase 0** | target URL unreachable from the orchestrator | start the target first (demo-app: `npm start` → :3000). Provided-but-broken input fails loudly by design — it never downgrades to a design-only run |
+| An agent posts `BLOCKED` mid-run | per-agent iteration/token budget hit, or a tool kept erroring | read the reason in the signal feed; the pipeline degrades gracefully instead of crashing |
+| Want to verify the pipeline without spending tokens | — | `npm run demo:mock` (offline mock-model proof) or read the committed run at [docs/sample-run/](docs/sample-run/) |
+
+---
+
 ## Attribution
 
 AG-QREW began as a [Claude Code](https://claude.com/claude-code) skill pipeline (our own prior
@@ -469,7 +503,10 @@ work). For this hackathon we **rebuilt it from scratch as a standalone multi-age
 Qwen** — the Claude Code sub-agent/tool/MCP runtime was replaced by our own `AgentLoop`,
 function-calling tool layer, file signal bus, and SQLite store. TestRail/Jira/Postman integrations
 were dropped in favour of a self-contained SQLite + dashboard stack so the whole system runs with
-one command and no external accounts (they remain documentable as pluggable adapters).
+one command and no external accounts (they remain documentable as pluggable adapters). The QA
+methodology survived the port intact: SFDIPOT-mapped test plans, FEW HICCUPPS oracles on every
+bug, the shared-file signal bus, and the single human checkpoint all come from the original
+pipeline.
 
 ## Project status
 
