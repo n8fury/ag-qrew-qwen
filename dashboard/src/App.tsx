@@ -25,6 +25,7 @@ export default function App() {
         <span className="brand">AG-QREW on Qwen<small>autonomous QA society · Track 3</small></span>
         <ProgressBar
           phase={state.phase}
+          mode={state.mode}
           running={state.running}
           awaitingProceed={state.awaitingProceed}
           verdict={report.metrics?.society?.verdict ?? null}

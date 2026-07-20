@@ -13,7 +13,9 @@ import type { RunContext } from './agents/worker.js';
  *   npm run run:single         # the monolithic baseline
  * Flags: --mode society|single, --site <url>, --spec <path>, --interactive (human
  * proceed gate), --no-gate (ignore a BLOCKED environment).
- * With no --doc/--site it targets the bundled demo-app.
+ * With no --site it targets the bundled demo-app. General-input runs (any subset
+ * of URL / doc / spec) are driven from the dashboard or POST /api/run — the CLI
+ * stays the demo-preset entry point.
  */
 
 function arg(name: string, fallback?: string): string | undefined {

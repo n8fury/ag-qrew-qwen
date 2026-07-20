@@ -76,11 +76,13 @@ flowchart TD
 ### Dashboard
 
 A React dashboard (Vite, [`dashboard/`](dashboard/)) served by the orchestrator at
-**http://localhost:8787** — a **9-segment pipeline progress bar** (fed by the orchestrator's
-`PHASE` signals: amber while awaiting your approval, verdict-tinted when the run finishes),
-live signal feed over SSE, run controls (Start / the one **Proceed** approval), a filterable
-test-case browser, a bug list with **dispute & adjudication badges**, and the QA Lead's
-sign-off report with run metrics. The build (`dashboard/dist`) is committed, so it
+**http://localhost:8787** — a **mode-aware 9-segment pipeline progress bar** (fed by the
+orchestrator's `PHASE` signals: amber while awaiting your approval, verdict-tinted when the
+run finishes, phases outside the run's mode rendered dim/hatched), a **Configure tab** to
+bring your own target with a live capability preview (see
+[Bring your own target](#bring-your-own-target)), live signal feed over SSE, run controls
+(Start / the one **Proceed** approval), a filterable test-case browser, a bug list with
+**dispute & adjudication badges**, and the QA Lead's sign-off report with run metrics. The build (`dashboard/dist`) is committed, so it
 works from a fresh clone with zero extra steps; if the build is missing, `server.ts` falls back to
 an inline zero-dependency page. All data views read the same SQLite store + signal bus the agents
 write — screenshots below are from real Qwen runs.
@@ -216,32 +218,65 @@ A pipeline that provably finds 4/4 known bugs is a stronger demo than one pointe
 
 ---
 
+## Bring your own target
+
+A run needs **any subset** of three inputs — a **target URL**, a **requirements document**,
+and an **OpenAPI spec**. The pipeline auto-detects what you provided
+([`detectMode`](orchestrator/src/mode.ts) — the single source of truth for this matrix), tells
+you what that unlocks, and runs only the phases the inputs honestly support:
+
+| URL | Doc | Spec | Mode | What runs |
+|---|---|---|---|---|
+| ✓ | ✓ | ✓ | `full` — full pipeline | all 9 phases |
+| ✓ | ✓ | ✗ | `execution` | everything except the API contract battery |
+| ✓ | ✗ | ✓ | `contract-explore` | all 9 — the plan derives from the spec |
+| ✓ | ✗ | ✗ | `explore` | executes, but with weak oracles (consistency heuristics only) |
+| ✗ | ✓ | ✓ | `design-contract` | plan → approval → cases (incl. API cases) → sign-off |
+| ✗ | ✓ | ✗ | `design` | plan → approval → cases → sign-off |
+| ✗ | ✗ | ✓ | `contract-design` | plan → approval → API-only cases → sign-off |
+| ✗ | ✗ | ✗ | — | rejected: at least one input is required |
+
+**Detect → confirm → run, from the dashboard.** The *Configure* tab has fields for all three
+inputs (URL, requirements textarea with `.txt`/`.md` file load, OpenAPI file picker) plus
+modules, credentials and a site map. As you edit, the dashboard calls `POST /api/preview`
+(no side effects, no token) and renders a live **capability card** — detected inputs, what the
+run will and won't do, and what one more input would unlock. The Start button carries the mode
+label, so the card itself is the confirmation. The mode-aware progress bar renders skipped
+phases dim/hatched, design-mode runs finish with a `DESIGN COMPLETE` verdict (instead of a
+pass/fail call they never earned), and the sign-off report opens with a `Run mode:` line.
+
+**The demo target is just the default preset.** The panel prefills from `GET /api/preset`
+(the bundled demo app, its requirements, creds, and spec — one canonical copy in
+[`demoPreset.ts`](orchestrator/src/demoPreset.ts)); *Reset to demo* restores it. A custom
+run never silently borrows demo pieces: no uploaded spec means no spec, and demo-specific
+oracle hints ride in ctx fields (`appNotes`, `priorityOracles`) that generic targets simply
+leave empty — visible and editable under the panel's *Advanced* section.
+
+**Provided-but-broken input fails loudly.** A URL that fails the Phase-0 environment gate
+FAILs the run — it never silently downgrades to a design-only run. Detection judges what you
+*provided*, never what happened to work.
+
+**API equivalents:** `POST /api/run` accepts `{ ctx, specYaml }` (ctx is schema-validated —
+http(s) URL, deny-listed hosts rejected; specYaml ≤ 1 MB and must document ≥ 1 path). A
+body-less `POST /api/run` starts the demo preset — the only case where the bundled spec is
+used implicitly.
+
+---
+
 ## Will it work on *your* app? (generality & why a demo app)
 
-**Short answer:** the *engine* is app-agnostic; the *inputs* currently ship wired to the demo. Pointing it
-at a real app is a config change, not a rewrite — but with honest caveats below.
+**Short answer:** the *engine* is app-agnostic, and since the general-input work the *inputs*
+are too — point the Configure tab at your app (see
+[Bring your own target](#bring-your-own-target)). The honest caveats below still apply.
 
-### What's generic vs. what's hardcoded
+### What's generic vs. what's demo-specific
 
-Nothing in the runtime (`AgentLoop`, tools, bus, adjudication, sign-off) knows anything about a task
-manager. The entire app-under-test is described by one object, `RunContext` (see [`cli.ts`](orchestrator/src/cli.ts)):
-
-| Input | Today | To target a real app |
-|---|---|---|
-| `site` (URL under test) | ✅ `--site <url>` | pass your URL |
-| `specPath` (OpenAPI) | ✅ `--spec <path>` | pass your spec |
-| `docText` (requirements / release notes — **the QA Lead plans entirely from this**) | ❌ hardcoded `DEMO_DOC` | wire to `--doc` / config |
-| `creds` (login) | ❌ hardcoded demo creds | wire to `--creds` / config |
-| `modules` (e.g. `auth`, `tasks`) | ❌ hardcoded | wire to `--modules` / config |
-| `siteMap` (where things live) | ❌ hardcoded | wire to config |
-
-Feed a different `RunContext` and the same five agents plan, write cases, explore, API-test, dispute,
-and sign off on any app. Generalizing the four hardcoded fields is ~an hour of plumbing (flags or a
-`run.config.json`), with no change to the agent runtime.
-
-> ⚠️ Running `--site https://yourapp.com --spec ./your.yaml` **today** would test your app but still
-> plan against the *demo's* requirements and log in with *demo* credentials → meaningless output.
-> The requirements doc must match the app. Wiring `--doc`/`--creds`/`--modules` is the missing step.
+Nothing in the runtime (`AgentLoop`, tools, bus, adjudication, sign-off) knows anything about a
+task manager. The entire app-under-test is described by one object, `RunContext`, and every
+field of it is configurable from the dashboard or `POST /api/run` — URL, requirements doc,
+OpenAPI spec, modules, creds, site map, plus the app-specific oracle hints. The demo target
+survives only as the default preset. (The CLI [`cli.ts`](orchestrator/src/cli.ts) remains the
+demo-preset entry point, with `--site`/`--spec` overrides.)
 
 ### Why we built a demo app instead of pointing at a real site
 

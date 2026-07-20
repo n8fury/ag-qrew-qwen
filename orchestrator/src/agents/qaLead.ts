@@ -252,6 +252,15 @@ export async function runSociety(ctx: RunContext, opts: SocietyOptions = {}): Pr
     log('[phase 4] sign-off (qa-lead)…');
     const summary = buildSummary(db, bus);
     outcomes.push(await runAgent('qa-lead', deps, signOffTask(ctx, summary), { maxIterations: 20 }));
+
+    // The report opens with the run's input mode (plan-general-inputs E.2) —
+    // prepended deterministically, not left to the LLM, so every mode's report
+    // says which input subset produced it and which phases actually ran.
+    const reportPath = join(qaRoot, 'sign-off-report.txt');
+    if (existsSync(reportPath)) {
+      const modeLine = `Run mode: ${mode.label} [${mode.modeId}] — phases run: ${mode.phases.join(' → ')}`;
+      writeFileSync(reportPath, `${modeLine}\n\n${readFileSync(reportPath, 'utf8')}`);
+    }
   }
 
   const verdict = computeVerdict(db, bus, mode.modeId);

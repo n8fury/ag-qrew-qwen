@@ -10,11 +10,16 @@ const ROWS: Array<[string, (m: ModeMetrics) => string]> = [
   ['Verdict', (m) => m.verdict ?? '—'],
 ];
 
-function detectVerdict(text: string): 'PASS' | 'CONDITIONAL' | 'FAIL' | null {
+/** Banner class + label from the report text; design completions tint green like PASS. */
+function detectVerdict(text: string): { cls: 'PASS' | 'CONDITIONAL' | 'FAIL'; label: string } | null {
+  const d = text.match(/DESIGN COMPLETE(?:\s*—\s*WITH FINDINGS)?/i);
+  if (d) return { cls: 'PASS', label: d[0].toUpperCase() };
   const m = text.match(/verdict\s*[:—-]?\s*(PASS|CONDITIONAL(?:\s+PASS)?|FAIL)/i);
   if (!m) return null;
   const v = m[1].toUpperCase();
-  return v.startsWith('CONDITIONAL') ? 'CONDITIONAL' : (v as 'PASS' | 'FAIL');
+  return v.startsWith('CONDITIONAL')
+    ? { cls: 'CONDITIONAL', label: 'CONDITIONAL' }
+    : { cls: v as 'PASS' | 'FAIL', label: v };
 }
 
 export function SignOffView({ report }: { report: Report }) {
@@ -42,7 +47,7 @@ export function SignOffView({ report }: { report: Report }) {
           </tbody>
         </table>
       )}
-      {verdict && <div className={`verdict-banner ${verdict}`}>QA Lead verdict · {verdict}</div>}
+      {verdict && <div className={`verdict-banner ${verdict.cls}`}>QA Lead verdict · {verdict.label}</div>}
       {signOff
         ? <pre className="signoff-pre">{signOff}</pre>
         : <div className="empty">no sign-off report yet — written by qa-lead in Phase 4 (qa/sign-off-report.txt)</div>}

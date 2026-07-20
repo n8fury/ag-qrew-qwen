@@ -36,7 +36,7 @@ Signals are session-stamped; stale lines from previous runs are ignored by reade
 | `RESOLVED` | qa-lead | The QA Lead adjudicated a dispute: UPHELD / DOWNGRADED / REJECTED / RECLASSIFIED, with rationale |
 | `BLOCKED` | any agent | An agent cannot proceed. Surfaces on the dashboard and in the sign-off report — never crashes the run |
 | `DONE` | any agent | The agent finished its whole task |
-| `PHASE` | orchestrator | A pipeline phase is starting. Payload `<index>/<total>\|<id>\|<label>` (e.g. `3/9\|approval\|Approval checkpoint`) — drives the dashboard's segmented progress bar; `/api/state` serves the latest one as `phase` |
+| `PHASE` | orchestrator | A pipeline phase is starting. Payload `<index>/<total>\|<id>\|<label>` (e.g. `3/9\|approval\|Approval checkpoint`) — drives the dashboard's segmented progress bar; `/api/state` serves the latest one as `phase`. **Only active phases emit a signal**: with a partial input set (see the mode matrix in the README's "Bring your own target"), skipped phases emit no `PHASE` at all, and `index`/`total` count active phases only — a doc-only design run goes `1/4 … 4/4`, never `x/9` |
 
 ## Lifecycle of a run
 

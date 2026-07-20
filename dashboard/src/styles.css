@@ -63,6 +63,13 @@ code, pre { font-family: var(--mono); }
   background: var(--amber);
   animation: none;
 }
+/* not part of the active mode — dim + hatched, tooltip explains why */
+.phasebar .seg.skipped {
+  background: repeating-linear-gradient(
+    45deg, var(--border) 0 2px, transparent 2px 4px
+  );
+  opacity: .5;
+}
 .phasebar.v-pass .seg.done { background: var(--green); }
 .phasebar.v-cond .seg.done { background: var(--amber); }
 .phasebar.v-fail .seg.done { background: var(--red); }
