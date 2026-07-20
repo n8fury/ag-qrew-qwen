@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { proceed, startRun, useDashboardData } from './api';
+import { proceed, useDashboardData } from './api';
 import { ProgressBar } from './components/ProgressBar';
 import { SignalFeed } from './components/SignalFeed';
 import { CaseBrowser } from './components/CaseBrowser';
 import { BugsView } from './components/BugsView';
 import { SignOffView } from './components/SignOffView';
 import { PlanView } from './components/PlanView';
+import { RunConfigView } from './components/RunConfigView';
 
-type Tab = 'plan' | 'cases' | 'bugs' | 'signoff';
+type Tab = 'config' | 'plan' | 'cases' | 'bugs' | 'signoff';
 
 export default function App() {
   const { state, report, connected, refreshNow } = useDashboardData();
-  const [tab, setTab] = useState<Tab>('cases');
+  const [tab, setTab] = useState<Tab>('config');
 
   const adjudicated = state.disputes.filter((d) => d.status === 'RESOLVED').length;
   const pass = state.results.filter((r) => r.status === 'PASS').length;
@@ -30,8 +31,10 @@ export default function App() {
         />
         <span className={`conn ${connected ? 'ok' : ''}`}>{connected ? '● live' : '○ reconnecting'}</span>
         <span className="spacer" />
-        <button className="btn" disabled={state.running} onClick={async () => { await startRun(); refreshNow(); }}>
-          ▶ Start run
+        {/* detect-confirm-run: starting happens from the config panel, where the
+            capability card shows the mode BEFORE the click (plan Phase D.3) */}
+        <button className="btn" disabled={state.running} onClick={() => setTab('config')}>
+          ▶ New run
         </button>
         <button
           className={`btn warn${state.awaitingProceed ? ' armed' : ''}`}
@@ -75,6 +78,9 @@ export default function App() {
         <div className="panel">
           <div className="panel-head">
             <div className="tabs">
+              <button className={`tab${tab === 'config' ? ' active' : ''}`} onClick={() => setTab('config')}>
+                Configure
+              </button>
               <button className={`tab${tab === 'plan' ? ' active' : ''}`} onClick={() => setTab('plan')}>
                 Test plan{state.awaitingProceed && <span className="count">!</span>}
               </button>
@@ -89,6 +95,12 @@ export default function App() {
               </button>
             </div>
           </div>
+          {tab === 'config' && (
+            <RunConfigView
+              running={state.running}
+              onStarted={() => { setTab('cases'); refreshNow(); }}
+            />
+          )}
           {tab === 'plan' && <PlanView awaitingProceed={state.awaitingProceed} />}
           {tab === 'cases' && <CaseBrowser cases={state.cases} results={state.results} />}
           {tab === 'bugs' && <BugsView bugs={state.bugs} disputes={state.disputes} />}

@@ -81,10 +81,41 @@ export interface Result {
   recorded_at?: string;
 }
 
+/** Active run's detected mode from /api/state (mirrors orchestrator/src/mode.ts ModeState). */
+export interface ModeState {
+  modeId: string;
+  label: string;
+  phases: string[];
+}
+
+/** Full detectMode output from POST /api/preview (mirrors orchestrator/src/mode.ts RunMode). */
+export interface RunMode extends ModeState {
+  detected: { site: boolean; docText: boolean; spec: boolean };
+  willDo: string[];
+  wontDo: string[];
+  unlocks: string[];
+}
+
+/** Run inputs (mirrors orchestrator RunContext — the shape /api/preset returns and /api/run accepts). */
+export interface RunCtx {
+  project: string;
+  sprint: number;
+  site?: string;
+  apiSpecPath?: string;
+  modules: string[];
+  creds?: { adminEmail?: string; adminPassword?: string; userEmail?: string; userPassword?: string };
+  docText?: string;
+  siteMap?: string;
+  appNotes?: string;
+  priorityOracles?: { api?: string; explore?: string };
+}
+
 export interface State {
   running: boolean;
   awaitingProceed: boolean;
   phase: PhaseInfo | null;
+  /** null once the server restarts — the progress bar falls back to all-active rendering */
+  mode: ModeState | null;
   signals: Signal[];
   cases: TestCase[];
   bugs: Bug[];
@@ -112,6 +143,7 @@ export const EMPTY_STATE: State = {
   running: false,
   awaitingProceed: false,
   phase: null,
+  mode: null,
   signals: [],
   cases: [],
   bugs: [],

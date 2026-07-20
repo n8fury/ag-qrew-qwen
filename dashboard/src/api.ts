@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { EMPTY_STATE, type Report, type Signal, type State } from './types';
+import { EMPTY_STATE, type Report, type RunCtx, type RunMode, type Signal, type State } from './types';
 
 export async function fetchState(): Promise<State> {
   const r = await fetch('/api/state');
@@ -28,8 +28,63 @@ function authHeaders(): Record<string, string> {
   return token ? { 'X-AGQREW-TOKEN': token } : {};
 }
 
-export const startRun = () => fetch('/api/run', { method: 'POST', headers: authHeaders() });
+/**
+ * Start a run with the configured inputs (Phase D.3). `ctx` is the run context
+ * from the config panel; `specYaml` rides along when a spec file was chosen —
+ * the server writes it to qa/openapi.yaml before phase 1. A body-less call keeps
+ * the old behaviour (server-side demo preset).
+ */
+export const startRun = (body?: { ctx: RunCtx; specYaml?: string }) =>
+  fetch('/api/run', {
+    method: 'POST',
+    headers: body ? { 'Content-Type': 'application/json', ...authHeaders() } : authHeaders(),
+    body: body ? JSON.stringify(body) : undefined,
+  });
 export const proceed = () => fetch('/api/proceed', { method: 'POST', headers: authHeaders() });
+
+/** GET /api/preset — the bundled demo target the panel prefills from (Phase C.4). */
+export interface Preset {
+  ctx: RunCtx;
+  specYaml: string | null;
+}
+
+export async function fetchPreset(): Promise<Preset | null> {
+  try {
+    const r = await fetch('/api/preset');
+    if (!r.ok) return null;
+    return r.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * POST /api/preview — detectMode over the current inputs, no side effects
+ * (Phase C.1). 200 carries the mode; 400 means the empty input set. Both carry
+ * per-field validation errors for inline display.
+ */
+export interface Preview {
+  ok: boolean;
+  mode?: RunMode;
+  fieldErrors: Record<string, string>;
+  error?: string;
+}
+
+export async function fetchPreview(
+  ctx: { site?: string; docText?: string },
+  specProvided: boolean,
+): Promise<Preview | null> {
+  try {
+    const r = await fetch('/api/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ctx, specProvided }),
+    });
+    return await r.json();
+  } catch {
+    return null; // server unreachable — card shows "preview unavailable"
+  }
+}
 
 export interface Plan {
   file: string | null;
